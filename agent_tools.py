@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, Callable, Dict
 
 FAISS_ROOT = (Path(__file__).resolve().parent / ".." / "faiss-for-code-indexing").resolve()
 sys.path.append(str(FAISS_ROOT))
@@ -10,6 +10,14 @@ from src.vector_store import FAISSStore  # noqa: E402
 
 _SEARCHER: Optional[CodeSearcher] = None
 
+def query_internal_technical_docs(keyword: str) -> str:
+    """Search internal technical documentation with a specific keyword."""
+    return f"[RAG]: Technical specs for '{keyword}' (mocked)."
+
+
+def query_sales_database(query_sql: str) -> str:
+    """Search sales database with a SQL-like query."""
+    return f"[RAG]: Sales result for '{query_sql}' is 500M (mocked)."
 
 def initialize_search_engine(index_path: str) -> CodeSearcher:
     """Initialize and cache the FAISS-backed code search engine."""
@@ -49,3 +57,8 @@ def tool_code_search(query: str) -> str:
 
 
 TOOLS_MAP = {"search_codebase": tool_code_search}
+TOOLS_MAP: Dict[str, Callable[[str], str]] = {
+    "search_docs": query_internal_technical_docs,
+    "search_sales": query_sales_database,
+    "search_codebase": tool_code_search
+}

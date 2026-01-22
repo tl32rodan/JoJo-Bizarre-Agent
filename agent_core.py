@@ -2,6 +2,8 @@ import re
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Optional, Protocol
 
+from agent_tools import TOOLS_MAP
+
 
 class ChatCompletions(Protocol):
     def create(
@@ -23,37 +25,25 @@ class LLMClient(Protocol):
     chat: ChatInterface
 
 
-def query_internal_technical_docs(keyword: str) -> str:
-    """Search internal technical documentation with a specific keyword."""
-    return f"[RAG]: Technical specs for '{keyword}' (mocked)."
-
-
-def query_sales_database(query_sql: str) -> str:
-    """Search sales database with a SQL-like query."""
-    return f"[RAG]: Sales result for '{query_sql}' is 500M (mocked)."
-
-
-TOOLS: Dict[str, Callable[[str], str]] = {
-    "search_docs": query_internal_technical_docs,
-    "search_sales": query_sales_database,
-}
-
-
 REACT_SYSTEM_PROMPT = """
-You are an internal AI assistant that answers complex user questions.
+You are an internal AI assistant that answers complex user questions using RAG tools.
 Available tools:
 {tool_descriptions}
 
 Follow this exact format step-by-step:
 
 Question: user input question
-Thought: describe what to do next
+Thought: describe what to do next based only on the latest Observation
 Action: must be one of [{tool_names}]
 Action Input: tool input (plain text or JSON)
 Observation: (left blank, system fills tool output)
 ... (repeat Thought/Action/Observation until enough info)
-Thought: I now know the final answer.
+Thought: I now know the final answer based only on Observations.
 Final Answer: final response to the original question.
+
+Rules:
+- Only use facts found in Observations. Do not make up details.
+- If Observations are insufficient, say what is missing and ask for clarification.
 
 Begin.
 """.strip()
@@ -94,7 +84,7 @@ def run_react_agent(
     tools: Optional[Dict[str, Callable[[str], str]]] = None,
     max_steps: int = 10,
 ) -> ReactResult:
-    tools = tools or TOOLS
+    tools = tools or TOOLS_MAP
     tool_names = ", ".join(tools.keys())
     system_prompt = REACT_SYSTEM_PROMPT.format(
         tool_descriptions=get_tool_descriptions(tools),
