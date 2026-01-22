@@ -1,12 +1,7 @@
-import sys
-from pathlib import Path
 from typing import Any, Iterable, Optional, Callable, Dict
 
-FAISS_ROOT = (Path(__file__).resolve().parent / ".." / "faiss-for-code-indexing").resolve()
-sys.path.append(str(FAISS_ROOT))
-
-from src.search import CodeSearcher  # noqa: E402
-from src.vector_store import FAISSStore  # noqa: E402
+from lib.faiss_code_indexer.src.search import CodeSearcher
+from lib.faiss_code_indexer.src.vector_store import FAISSStore
 
 _SEARCHER: Optional[CodeSearcher] = None
 

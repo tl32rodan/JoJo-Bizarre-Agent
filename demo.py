@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the ReAct agent demo interactively.")
     parser.add_argument(
         "--index",
-        default="../faiss-for-code-indexing/faiss_index_store",
+        default="lib/faiss_code_indexer/faiss_index_store",
         help="Path to the FAISS index store built by the RAG repo.",
     )
     parser.add_argument(
