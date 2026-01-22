@@ -1,0 +1,3 @@
+[submodule "lib/faiss_code_indexer"]
+	path = lib/faiss_code_indexer
+	url = https://github.com/tl32rodan/Faiss-for-code-indexing
