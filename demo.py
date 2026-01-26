@@ -1,10 +1,14 @@
 import argparse
 import importlib
+import importlib.util
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict
 
-from agent_core import LLMClient, ReactResult, query_sales_database, run_react_agent
+from agent_core import ReactResult
+from app.config import load_config
+from app.core.react_agent import ReactAgentRunner
+from app.tools import TOOLS
 
 
 @dataclass(frozen=True)
@@ -18,33 +22,39 @@ class SearchEngine:
 def initialize_search_engine(index_path: str) -> SearchEngine:
     path = Path(index_path)
     if not path.exists():
-        raise FileNotFoundError(
-            f"Index not found at {path}."
-        )
+        raise FileNotFoundError(f"Index not found at {path}.")
     return SearchEngine(index_path=path)
+
+
+class OpenAIClientAdapter:
+    def __init__(self, client, *, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    def invoke(self, prompt: str) -> str:
+        response = self._client.chat.completions.create(
+            model=self._model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+        )
+        return response.choices[0].message.content.strip()
 
 
 @dataclass
 class ReActAgent:
-    client: LLMClient
-    model: str
-    tools: Dict[str, Callable[[str], str]]
+    runner: ReactAgentRunner
 
-    def run(self, question: str) -> ReactResult:
-        return run_react_agent(
-            question,
-            client=self.client,
-            model=self.model,
-            tools=self.tools,
-        )
+    def run(self, question: str) -> ReactResult | str:
+        return self.runner.run(question)
 
 
-def build_llm_client() -> LLMClient:
+def build_llm_client(model: str) -> OpenAIClientAdapter:
     spec = importlib.util.find_spec("openai")
     if spec is None:
         raise RuntimeError("Missing 'openai' package. Install it to run the demo.")
     openai = importlib.import_module("openai")
-    return openai.OpenAI()
+    client = openai.OpenAI()
+    return OpenAIClientAdapter(client, model=model)
 
 
 def parse_args() -> argparse.Namespace:
@@ -56,7 +66,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="gpt-4o-mini",
+        default=load_config().llm.model_name,
         help="Model name for the LLM backend.",
     )
     return parser.parse_args()
@@ -67,17 +77,17 @@ def main() -> None:
     try:
         search_engine = initialize_search_engine(args.index)
     except FileNotFoundError as exc:
-        print(
-            f"{exc} Index 需先在 RAG repo 建好。",
-        )
+        print(f"{exc} Index 需先在 RAG repo 建好。")
         return
 
-    client = build_llm_client()
-    tools = {
+    client = build_llm_client(args.model)
+    tools: Dict[str, Callable[[str], str]] = {
+        **TOOLS,
         "search_docs": search_engine.search,
-        "search_sales": query_sales_database,
     }
-    agent = ReActAgent(client=client, model=args.model, tools=tools)
+    agent = ReActAgent(
+        runner=ReactAgentRunner(llm=client, model=args.model, tools=tools)
+    )
 
     print("Enter your question (type 'exit' or 'quit' to leave).")
     while True:
@@ -93,7 +103,10 @@ def main() -> None:
             break
         result = agent.run(user_input)
         print("\nAnswer:")
-        print(result.answer)
+        if isinstance(result, ReactResult):
+            print(result.answer)
+        else:
+            print(result)
 
 
 if __name__ == "__main__":
