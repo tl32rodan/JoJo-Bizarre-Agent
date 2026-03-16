@@ -1,0 +1,55 @@
+# Local ReAct Agent Configuration
+# Copy this file and adjust for your environment.
+
+llm:
+  base_url: ${LLM_BASE_URL:-http://f15dtpai1:11517/v1}
+  model: ${LLM_MODEL:-gpt-oss-120b}
+  api_key: ${LLM_API_KEY:-EMPTY}
+
+memory:
+  storage_dir: ./agent_data/memory
+  max_entries: 10000
+  auto_memorize: true
+
+mcp_servers:
+  # External tools accessed via MCP stdio transport.
+  # SMAK is imported directly as a Python library, NOT via MCP.
+  filesystem:
+    command: python
+    args: ["-m", "filesystem_server.server"]
+    env:
+      ROOT_DIR: ${WORKSPACE_ROOT:-.}
+
+permissions:
+  mode: ask                       # ask | allow_all | deny_all
+  allowed_tools: ["*"]
+  denied_tools: []
+  require_confirmation:
+    - delete_file
+    - write_file
+    - run_terminal_command
+
+heartbeat:
+  enabled: true
+  interval_seconds: 300
+
+email:
+  enabled: false
+  ddi_api_path: /CAD/stdcell/DesignKits/SCLD_OBF_2013.06/STD_CORE_CHAR/Script/ddi_api.pl
+  sender: ""
+  recipients: []
+  notify_on:
+    - error
+    - heartbeat_failure
+    - task_complete
+
+subagent:
+  enabled: true
+  mode: tmux                      # tmux | cron
+  max_concurrent: 3
+  timeout_seconds: 600
+  work_dir: ./agent_data/subagent_tasks/
+
+session:
+  max_history_tokens: 8000
+  auto_summarize_after: 20
