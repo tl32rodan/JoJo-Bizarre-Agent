@@ -1,8 +1,9 @@
 """Stand Arrow（スタンドの矢）— Stand factory.
 
 The Stand Arrow is the mechanism STAR PLATINUM uses to summon Stands.
-It analyses the task, selects the appropriate Stand type, and creates
-a fully-initialised Stand instance ready for execution.
+For in-process Stands (THE WORLD, HARVEST, CRAZY DIAMOND), it creates
+instances directly.  For subagent Stands (HIEROPHANT GREEN, SHEER HEART
+ATTACK), it delegates to the SubAgentSpawner.
 """
 
 from __future__ import annotations
@@ -10,20 +11,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from react_agent.stands.base import Stand, StandType, STAND_PROFILES
+from stand_master.stands.base import Stand, StandType, SpawnMode, STAND_PROFILES
 
 logger = logging.getLogger(__name__)
 
 
 class StandArrow:
-    """Factory that pierces a task and awakens the correct Stand.
-
-    Usage::
-
-        arrow = StandArrow(llm=llm, memory=memory, ...)
-        stand = arrow.summon(StandType.THE_WORLD)
-        result = await stand.execute("analyse this circuit", context={...})
-    """
+    """Factory that pierces a task and awakens the correct Stand."""
 
     def __init__(
         self,
@@ -48,26 +42,18 @@ class StandArrow:
         self._active_stands: list[Stand] = []
 
     def summon(self, stand_type: StandType) -> Stand:
-        """Create and return the requested Stand type."""
-        logger.info(
-            "Stand Arrow pierces — summoning %s",
-            STAND_PROFILES[stand_type]["name"],
-        )
+        logger.info("Stand Arrow pierces — summoning %s", STAND_PROFILES[stand_type]["name"])
 
         if stand_type == StandType.THE_WORLD:
-            from react_agent.stands.the_world import TheWorld
-
-            # Use reasoning LLM if available, otherwise default LLM.
-            llm = self._reasoning_llm or self._llm
+            from stand_master.stands.the_world import TheWorld
             stand = TheWorld(
-                llm=llm,
+                llm=self._reasoning_llm or self._llm,
                 tool_registry=self._tools,
                 max_steps=30,
             )
 
         elif stand_type == StandType.HIEROPHANT_GREEN:
-            from react_agent.stands.hierophant_green import HierophantGreen
-
+            from stand_master.stands.hierophant_green import HierophantGreen
             stand = HierophantGreen(
                 memory_store=self._memory,
                 query_service=self._query_service,
@@ -75,19 +61,21 @@ class StandArrow:
             )
 
         elif stand_type == StandType.HARVEST:
-            from react_agent.stands.harvest import Harvest
-
-            stand = Harvest(
-                worker=self._harvest_worker,
-                max_concurrency=self._config.subagent.max_concurrent if self._config else 10,
-            )
+            from stand_master.stands.harvest import Harvest
+            max_c = self._config.subagent.max_concurrent if self._config else 10
+            stand = Harvest(worker=self._harvest_worker, max_concurrency=max_c)
 
         elif stand_type == StandType.SHEER_HEART_ATTACK:
-            from react_agent.stands.sheer_heart_attack import SheerHeartAttack
+            from stand_master.stands.sheer_heart_attack import SheerHeartAttack
+            timeout = self._config.subagent.timeout_seconds if self._config else 600
+            stand = SheerHeartAttack(spawner=self._spawner, timeout=timeout)
 
-            stand = SheerHeartAttack(
-                spawner=self._spawner,
-                timeout=self._config.subagent.timeout_seconds if self._config else 600,
+        elif stand_type == StandType.CRAZY_DIAMOND:
+            from stand_master.stands.crazy_diamond import CrazyDiamond
+            stand = CrazyDiamond(
+                llm=self._llm,
+                tool_registry=self._tools,
+                memory_store=self._memory,
             )
 
         else:
@@ -97,11 +85,9 @@ class StandArrow:
         return stand
 
     def summon_by_name(self, name: str) -> Stand:
-        """Summon a Stand by its string name (e.g. ``"the_world"``)."""
         try:
             stand_type = StandType(name.lower().strip())
         except ValueError:
-            # Try matching display names.
             name_lower = name.lower()
             for st in StandType:
                 profile = STAND_PROFILES[st]
@@ -115,24 +101,24 @@ class StandArrow:
                 )
         return self.summon(stand_type)
 
+    def get_spawn_mode(self, stand_type: StandType) -> SpawnMode:
+        mode = STAND_PROFILES[stand_type].get("spawn_mode", "in_process")
+        return SpawnMode(mode)
+
     @property
     def active_stands(self) -> list[Stand]:
         return list(self._active_stands)
 
     def retire_all(self) -> None:
-        """Mark all active Stands as retired."""
         self._active_stands.clear()
 
     @staticmethod
     def describe_stands() -> str:
-        """Return a formatted description of all available Stands.
-
-        Used by STAR PLATINUM's system prompt to know what it can summon.
-        """
         lines = ["## Stand Arrow — Available Stands\n"]
         for st in StandType:
             p = STAND_PROFILES[st]
-            lines.append(f"### {p['name']}  [{p['ability']}]")
+            mode = p.get("spawn_mode", "in_process")
+            lines.append(f"### {p['name']}  [{p['ability']}]  (mode: {mode})")
             lines.append(f"{p['description']}\n")
             lines.append(f"Summon command: `summon_stand(\"{st.value}\")`\n")
         return "\n".join(lines)

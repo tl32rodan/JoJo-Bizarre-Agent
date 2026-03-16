@@ -1,8 +1,11 @@
 """SHEER HEART ATTACK（シアーハートアタック）— Automatic Stand.
 
-An autonomous unit that tracks its target independently.
-Wraps the existing SubAgentSpawner (tmux/cron) so STAR PLATINUM can
-fire-and-forget long-running background tasks.
+Background task pipeline (spawned as subagent via Stand Arrow).
+Launches a task via SubAgentSpawner (tmux/cron) and optionally polls.
+
+When the task is "fire_and_forget" (default), STAR PLATINUM gets an
+immediate acknowledgement. The actual work runs in a separate process
+via stands/runner.py.
 """
 
 from __future__ import annotations
@@ -11,13 +14,13 @@ import asyncio
 import logging
 from typing import Any
 
-from react_agent.stands.base import Stand, StandResult, StandStatus, StandType
+from stand_master.stands.base import Stand, StandResult, StandStatus, StandType
 
 logger = logging.getLogger(__name__)
 
 
 class SheerHeartAttack(Stand):
-    """「コッチヲ見ロ」— Autonomous pursuit, no recall."""
+    """「コッチヲ見ロ」"""
 
     stand_type = StandType.SHEER_HEART_ATTACK
 
@@ -33,12 +36,7 @@ class SheerHeartAttack(Stand):
         self._timeout = timeout
 
     async def execute(self, task: str, context: dict[str, Any] | None = None) -> StandResult:
-        """Launch a background task and optionally await completion.
-
-        If ``context["fire_and_forget"]`` is True (default), returns
-        immediately after spawning.  Otherwise, polls until completion
-        or timeout.
-        """
+        """Background pipeline: spawn → (optionally) poll → collect."""
         self._status = StandStatus.ACTIVE
         logger.info("SHEER HEART ATTACK activated — task_id=%s", self._task_id)
 
@@ -50,23 +48,19 @@ class SheerHeartAttack(Stand):
 
         try:
             handle = self._spawner.spawn(task, context=ctx)
-            logger.info(
-                "SHEER HEART ATTACK spawned sub-agent %s", handle.task_id
-            )
+            logger.info("SHEER HEART ATTACK spawned sub-agent %s", handle.task_id)
 
             if fire_and_forget:
                 return self._succeed(
                     f"Background task launched: {handle.task_id}",
-                    sub_task_id=handle.task_id,
-                    mode="fire_and_forget",
+                    sub_task_id=handle.task_id, mode="fire_and_forget",
                 )
 
-            # Poll until done or timeout.
+            # Poll until done.
             elapsed = 0.0
             while elapsed < self._timeout:
                 await asyncio.sleep(self._poll_interval)
                 elapsed += self._poll_interval
-
                 sub_result = self._spawner.collect(handle)
                 if sub_result.status.value in ("completed", "failed"):
                     return self._succeed(
@@ -76,13 +70,8 @@ class SheerHeartAttack(Stand):
                         elapsed=elapsed,
                     )
 
-            return self._fail(
-                f"SHEER HEART ATTACK timed out after {self._timeout}s",
-                sub_task_id=handle.task_id,
-            )
+            return self._fail(f"Timed out after {self._timeout}s", sub_task_id=handle.task_id)
 
         except Exception as exc:
-            logger.exception(
-                "SHEER HEART ATTACK failed — task_id=%s", self._task_id
-            )
+            logger.exception("SHEER HEART ATTACK failed — task_id=%s", self._task_id)
             return self._fail(str(exc))

@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
-name = "react-agent"
-version = "0.1.0"
-description = "Local ReAct Agent with SMAK core, MCP client, and RAG-based memory"
+name = "stand-master"
+version = "0.2.0"
+description = "STAR PLATINUM — Multi-agent orchestrator with Stand Arrow architecture"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -13,20 +13,18 @@ dependencies = [
     "pyyaml>=6.0",
     "langchain-openai>=0.1",
     "mcp>=1.0",
-]
-
-[project.optional-dependencies]
-smak = [
     "smak",
     "faiss-storage-lib",
 ]
+
+[project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
 ]
 
 [project.scripts]
-react-agent = "react_agent.main:main"
+stand-master = "stand_master.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

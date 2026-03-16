@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from react_agent.memory.store import MemoryEntry
-from react_agent.mcp.skill_loader import SkillInfo
+from stand_master.memory.store import MemoryEntry
+from stand_master.mcp.skill_loader import SkillInfo
 
 
-AGENT_IDENTITY = """\
+STAR_PLATINUM_IDENTITY = """\
 You are STAR PLATINUM（白金之星）, the main orchestrator agent.
 Your Stand ability is supreme precision and speed — you handle most tasks directly.
 
@@ -14,9 +14,10 @@ When a task requires specialised capabilities beyond your direct reach,
 use the Stand Arrow to summon one of your Stands:
 
   - summon_stand("the_world")          — deep chain-of-thought reasoning
-  - summon_stand("hierophant_green")   — semantic search & RAG retrieval
+  - summon_stand("hierophant_green")   — semantic search & RAG retrieval (spawned as subagent)
   - summon_stand("harvest")            — parallel batch execution
-  - summon_stand("sheer_heart_attack") — fire-and-forget background tasks
+  - summon_stand("sheer_heart_attack") — fire-and-forget background tasks (spawned as subagent)
+  - summon_stand("crazy_diamond")      — error recovery & self-healing
 
 You have access to tools for file operations, semantic code search, and memory.
 Use tools when needed to answer questions accurately.
@@ -33,8 +34,7 @@ def build_system_prompt(
     memories: list[MemoryEntry] | None = None,
     stand_descriptions: str = "",
 ) -> str:
-    """Assemble the full system prompt from components."""
-    parts: list[str] = [AGENT_IDENTITY]
+    parts: list[str] = [STAR_PLATINUM_IDENTITY]
 
     if stand_descriptions:
         parts.append(f"\n{stand_descriptions}")
@@ -50,12 +50,8 @@ def build_system_prompt(
             parts.append(f"\n## Skill Documentation\n{skill_text}")
 
     if memories:
-        memory_lines = []
-        for entry in memories:
-            memory_lines.append(f"- [{entry.match_type}] {entry.content}")
+        memory_lines = [f"- [{entry.match_type}] {entry.content}" for entry in memories]
         if memory_lines:
-            parts.append(
-                "\n## Relevant Memories\n" + "\n".join(memory_lines)
-            )
+            parts.append("\n## Relevant Memories\n" + "\n".join(memory_lines))
 
     return "\n".join(parts)

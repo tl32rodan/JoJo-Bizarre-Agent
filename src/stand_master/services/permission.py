@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from react_agent.config import PermissionConfig
+from stand_master.config import PermissionConfig
 
 
 class PermissionVerdict(Enum):
@@ -23,25 +23,17 @@ class PermissionResult:
 
 
 class PermissionManager:
-    """Evaluate whether a tool call is permitted based on config rules."""
-
     def __init__(self, config: PermissionConfig) -> None:
         self._config = config
 
     def check(self, tool_name: str, arguments: dict[str, Any] | None = None) -> PermissionResult:
-        """Check if *tool_name* is allowed under the current permission config."""
         mode = self._config.mode
 
         if mode == "allow_all":
             return PermissionResult(verdict=PermissionVerdict.ALLOW)
-
         if mode == "deny_all":
-            return PermissionResult(
-                verdict=PermissionVerdict.DENY,
-                reason="All tools denied (mode=deny_all).",
-            )
+            return PermissionResult(verdict=PermissionVerdict.DENY, reason="All tools denied.")
 
-        # Denied tools take highest priority.
         for pattern in self._config.denied_tools:
             if fnmatch.fnmatch(tool_name, pattern):
                 return PermissionResult(
@@ -49,7 +41,6 @@ class PermissionManager:
                     reason=f"Tool '{tool_name}' matches denied pattern '{pattern}'.",
                 )
 
-        # Require confirmation.
         for name in self._config.require_confirmation:
             if fnmatch.fnmatch(tool_name, name):
                 return PermissionResult(
@@ -57,19 +48,14 @@ class PermissionManager:
                     reason=f"Tool '{tool_name}' requires user confirmation.",
                 )
 
-        # Allowed tools.
         for pattern in self._config.allowed_tools:
             if fnmatch.fnmatch(tool_name, pattern):
                 return PermissionResult(verdict=PermissionVerdict.ALLOW)
 
-        # Default for "ask" mode: require confirmation for unknown tools.
         if mode == "ask":
             return PermissionResult(
                 verdict=PermissionVerdict.ASK_USER,
                 reason=f"Tool '{tool_name}' not explicitly allowed (mode=ask).",
             )
 
-        return PermissionResult(
-            verdict=PermissionVerdict.DENY,
-            reason=f"Tool '{tool_name}' not allowed.",
-        )
+        return PermissionResult(verdict=PermissionVerdict.DENY, reason=f"Tool '{tool_name}' not allowed.")
