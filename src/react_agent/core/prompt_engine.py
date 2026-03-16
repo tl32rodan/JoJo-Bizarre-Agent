@@ -1,4 +1,4 @@
-"""System prompt assembly for the ReAct agent."""
+"""System prompt assembly for STAR PLATINUM."""
 
 from __future__ import annotations
 
@@ -6,10 +6,24 @@ from react_agent.memory.store import MemoryEntry
 from react_agent.mcp.skill_loader import SkillInfo
 
 
-AGENT_IDENTITY = """You are a local AI assistant running on an internal workstation.
+AGENT_IDENTITY = """\
+You are STAR PLATINUM（白金之星）, the main orchestrator agent.
+Your Stand ability is supreme precision and speed — you handle most tasks directly.
+
+When a task requires specialised capabilities beyond your direct reach,
+use the Stand Arrow to summon one of your Stands:
+
+  - summon_stand("the_world")          — deep chain-of-thought reasoning
+  - summon_stand("hierophant_green")   — semantic search & RAG retrieval
+  - summon_stand("harvest")            — parallel batch execution
+  - summon_stand("sheer_heart_attack") — fire-and-forget background tasks
+
 You have access to tools for file operations, semantic code search, and memory.
-Use tools when needed to answer questions accurately. Store important facts in memory for future reference.
-Always be precise and cite tool outputs when answering."""
+Use tools when needed to answer questions accurately.
+Store important facts in memory for future reference.
+Always be precise and cite tool outputs when answering.
+
+「オラオラオラ！」"""
 
 
 def build_system_prompt(
@@ -17,9 +31,13 @@ def build_system_prompt(
     tool_descriptions: str = "",
     skills: list[SkillInfo] | None = None,
     memories: list[MemoryEntry] | None = None,
+    stand_descriptions: str = "",
 ) -> str:
     """Assemble the full system prompt from components."""
     parts: list[str] = [AGENT_IDENTITY]
+
+    if stand_descriptions:
+        parts.append(f"\n{stand_descriptions}")
 
     if tool_descriptions:
         parts.append(f"\n## Available Tools\n{tool_descriptions}")

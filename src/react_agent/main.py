@@ -1,10 +1,9 @@
-"""Entry point for the local ReAct agent."""
+"""Entry point for the local ReAct agent — STAR PLATINUM edition."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import signal
 import sys
 from pathlib import Path
 
@@ -17,8 +16,19 @@ from react_agent.mcp.tool_registry import ToolRegistry
 from react_agent.services.email_notifier import EmailNotifier
 from react_agent.services.heartbeat import HeartbeatService
 from react_agent.services.permission import PermissionManager
+from react_agent.stands.arrow import StandArrow
 
 logger = logging.getLogger(__name__)
+
+_BANNER = r"""
+  ____  _____  _    ____    ____  _        _  _____ ___ _   _ _   _ __  __
+ / ___||_   _|/ \  |  _ \  |  _ \| |      / \|_   _|_ _| \ | | | | |  \/  |
+ \___ \  | | / _ \ | |_) | | |_) | |     / _ \ | |  | ||  \| | | | | |\/| |
+  ___) | | |/ ___ \|  _ <  |  __/| |___ / ___ \| |  | || |\  | |_| | |  | |
+ |____/  |_/_/   \_\_| \_\ |_|   |_____/_/   \_\_| |___|_| \_|\___/|_|  |_|
+
+    「オラオラオラ！」 — Stand Arrow Ready.
+"""
 
 
 async def async_main(config_path: str = "agent.yaml") -> None:
@@ -33,6 +43,16 @@ async def async_main(config_path: str = "agent.yaml") -> None:
             model=config.llm.model,
             api_key=config.llm.api_key,
         )
+
+        # Optional reasoning model for THE WORLD.
+        reasoning_model = config.llm.models.get("reasoning")
+        reasoning_llm = None
+        if reasoning_model and reasoning_model != config.llm.model:
+            reasoning_llm = ChatOpenAI(
+                base_url=config.llm.base_url,
+                model=reasoning_model,
+                api_key=config.llm.api_key,
+            )
     except ImportError:
         logger.error("langchain-openai not installed. Cannot start agent.")
         return
@@ -46,7 +66,6 @@ async def async_main(config_path: str = "agent.yaml") -> None:
             logger.exception("Failed to connect to MCP servers")
 
     # --- Memory ---
-    # Try SMAK / faiss-storage-lib first; fall back to lightweight in-memory stubs.
     try:
         from smak.utils.embedding import InternalNomicEmbedding
         embedder = InternalNomicEmbedding()
@@ -65,6 +84,14 @@ async def async_main(config_path: str = "agent.yaml") -> None:
 
     memory = MemoryStore(vector_store=vs, embedder=embedder)
 
+    # --- SMAK QueryService (for HIEROPHANT GREEN) ---
+    query_service = None
+    try:
+        from smak.factory import create_query_service
+        query_service = create_query_service(config.smak.workspace_config)
+    except Exception:
+        logger.info("SMAK QueryService not available — HIEROPHANT GREEN will use memory only.")
+
     # --- Permissions ---
     permissions = PermissionManager(config.permissions)
 
@@ -73,10 +100,34 @@ async def async_main(config_path: str = "agent.yaml") -> None:
     if mcp_client.server_names:
         await tool_registry.register_mcp_tools(mcp_client)
 
-    # Load SKILL.md from known paths.
-    # TODO: make configurable.
     skills = load_skills_from_paths([Path(".")])
     tool_registry.enhance_with_skills(skills)
+
+    # --- SubAgent spawner (for SHEER HEART ATTACK) ---
+    subagent_spawner = None
+    try:
+        from react_agent.services.subagent import SubAgentSpawner
+        subagent_spawner = SubAgentSpawner(config.subagent)
+    except Exception:
+        logger.info("SubAgent spawner not available — SHEER HEART ATTACK disabled.")
+
+    # --- Stand Arrow (スタンドの矢) ---
+    async def harvest_worker(task: str, ctx: dict) -> str:
+        """Default HARVEST worker: run a mini agent loop."""
+        mini_agent = AgentLoop(llm=llm, tool_registry=tool_registry, memory=memory)
+        result = await mini_agent.run(task, max_steps=5)
+        return result.answer
+
+    stand_arrow = StandArrow(
+        llm=llm,
+        reasoning_llm=reasoning_llm,
+        tool_registry=tool_registry,
+        memory_store=memory,
+        query_service=query_service,
+        subagent_spawner=subagent_spawner,
+        harvest_worker=harvest_worker,
+        config=config,
+    )
 
     # --- Email ---
     email = EmailNotifier(config.email)
@@ -100,20 +151,24 @@ async def async_main(config_path: str = "agent.yaml") -> None:
     )
     heartbeat.start()
 
-    # --- Agent loop ---
+    # --- STAR PLATINUM agent loop ---
     agent = AgentLoop(
         llm=llm,
         tool_registry=tool_registry,
         memory=memory,
         permissions=permissions,
         config=config,
+        stand_arrow=stand_arrow,
     )
 
-    print("Local ReAct Agent ready. Type 'exit' or 'quit' to leave.")
+    print(_BANNER)
+    print("STAR PLATINUM ready. Type 'exit' or 'quit' to leave.")
+    print("Stand Arrow can summon: THE WORLD, HIEROPHANT GREEN, HARVEST, SHEER HEART ATTACK\n")
+
     try:
         while True:
             try:
-                user_input = input("> ").strip()
+                user_input = input("STAR PLATINUM> ").strip()
             except EOFError:
                 break
             if not user_input:
@@ -122,13 +177,19 @@ async def async_main(config_path: str = "agent.yaml") -> None:
                 break
             result = await agent.run(user_input)
             print(f"\n{result.answer}\n")
+            details = []
             if result.tool_calls:
-                print(f"  [Used {len(result.tool_calls)} tool(s) in {result.steps} step(s)]")
+                details.append(f"{len(result.tool_calls)} tool(s)")
+            if result.stands_used:
+                details.append(f"Stands: {', '.join(result.stands_used)}")
+            details.append(f"{result.steps} step(s)")
+            print(f"  [{' | '.join(details)}]")
     finally:
         heartbeat.stop()
         await mcp_client.disconnect_all()
         memory.persist()
-        print("Goodbye!")
+        stand_arrow.retire_all()
+        print("やれやれだぜ… Goodbye!")
 
 
 def main() -> None:
