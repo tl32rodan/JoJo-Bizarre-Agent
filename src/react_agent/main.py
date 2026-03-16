@@ -46,23 +46,22 @@ async def async_main(config_path: str = "agent.yaml") -> None:
             logger.exception("Failed to connect to MCP servers")
 
     # --- Memory ---
-    # Simplified standalone mode (without full SMAK) for initial launch.
-    # TODO: integrate SMAK QueryService when SMAK is installed.
-    from conftest import FakeEmbedding as _FallbackEmbedding  # noqa: avoid hard dep
+    # Try SMAK / faiss-storage-lib first; fall back to lightweight in-memory stubs.
     try:
         from smak.utils.embedding import InternalNomicEmbedding
         embedder = InternalNomicEmbedding()
     except ImportError:
         logger.warning("SMAK not installed, using fallback embedding (memory will be limited).")
-        embedder = _FallbackEmbedding()  # type: ignore[assignment]
+        from react_agent.memory.fallback import FallbackEmbedding
+        embedder = FallbackEmbedding()  # type: ignore[assignment]
 
-    from conftest import FakeVectorStore as _FallbackVS  # noqa
     try:
         from faiss_storage_lib.engine.faiss_engine import FaissEngine
         vs = FaissEngine(config.memory.storage_dir, dimension=768)
     except ImportError:
         logger.warning("faiss-storage-lib not installed, using in-memory vector store.")
-        vs = _FallbackVS()  # type: ignore[assignment]
+        from react_agent.memory.fallback import FallbackVectorStore
+        vs = FallbackVectorStore()  # type: ignore[assignment]
 
     memory = MemoryStore(vector_store=vs, embedder=embedder)
 

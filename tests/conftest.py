@@ -8,10 +8,8 @@ from typing import Any
 
 import pytest
 
-# Ensure both repo root and src/ are on the path.
+# Ensure src/ is on the path so ``import react_agent`` works in tests.
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 _SRC = ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
@@ -61,60 +59,16 @@ def fake_llm_response():
 
 
 # ---------------------------------------------------------------------------
-# Mock Embedding
+# Re-export fallback stubs used by several test modules
 # ---------------------------------------------------------------------------
 
-class FakeEmbedding:
-    """Returns deterministic vectors based on text hash."""
-
-    def __init__(self, dimension: int = 8):
-        self.dimension = dimension
-
-    def get_text_embedding(self, text: str) -> list[float]:
-        h = hash(text) % (10**6)
-        return [(h + i) % 100 / 100.0 for i in range(self.dimension)]
-
-    def encode(self, texts: list[str]) -> list[list[float]]:
-        return [self.get_text_embedding(t) for t in texts]
-
-    def get_sentence_embedding_dimension(self) -> int:
-        return self.dimension
+from react_agent.memory.fallback import FallbackEmbedding as FakeEmbedding  # noqa: E402
+from react_agent.memory.fallback import FallbackVectorStore as FakeVectorStore  # noqa: E402
 
 
 @pytest.fixture
 def mock_embedding():
     return FakeEmbedding()
-
-
-# ---------------------------------------------------------------------------
-# Mock Vector Store
-# ---------------------------------------------------------------------------
-
-class FakeVectorStore:
-    """In-memory vector store matching SMAK's interface."""
-
-    def __init__(self):
-        self._docs: dict[str, dict[str, Any]] = {}
-        self.persist_count = 0
-
-    def add(self, nodes: list[Any]) -> None:
-        for node in nodes:
-            uid = getattr(node, "id_", None) or getattr(node, "uid", "")
-            self._docs[uid] = {
-                "uid": uid,
-                "content": getattr(node, "text", "") or getattr(node, "content", ""),
-                "metadata": getattr(node, "metadata", {}),
-                "score": 1.0,
-            }
-
-    def search(self, query_vector: list[float], top_k: int = 5) -> list[dict[str, Any]]:
-        return list(self._docs.values())[:top_k]
-
-    def get_by_id(self, uid: str) -> dict[str, Any] | None:
-        return self._docs.get(uid)
-
-    def persist(self) -> None:
-        self.persist_count += 1
 
 
 @pytest.fixture
