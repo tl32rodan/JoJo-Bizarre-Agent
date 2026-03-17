@@ -1,12 +1,19 @@
 # ┌──────────────────────────────────────────────────────────────┐
-# │  STAR PLATINUM（白金之星）— stand-master configuration       │
+# │  JoJo（ジョジョ）— Stand Master configuration                │
 # │                                                            │
-# │  GOLD EXPERIENCE Stands:                                       │
+# │  JoJo Stand Personas:                                      │
+# │    STAR PLATINUM     — Part 3 · Precision & direct exec    │
+# │    CRAZY DIAMOND     — Part 4 · Restoration & recovery     │
+# │    GOLD EXPERIENCE   — Part 5 · Sub-agent orchestration    │
+# │    STONE FREE        — Part 6 · Decomposition & connection │
+# │    TUSK              — Part 7 · Iterative deepening        │
+# │    SOFT & WET        — Part 8 · Extraction & isolation     │
+# │                                                            │
+# │  Spawnable Stands (via Gold Experience):                   │
 # │    THE WORLD          — Close-Range Power (in-process)     │
 # │    HIEROPHANT GREEN   — Long-Range RAG    (subagent)       │
 # │    HARVEST            — Colony parallel   (in-process)     │
 # │    SHEER HEART ATTACK — Automatic bg      (subagent)       │
-# │    CRAZY DIAMOND      — Restoration       (in-process)     │
 # └──────────────────────────────────────────────────────────────┘
 
 llm:

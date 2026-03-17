@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Coroutine
 
-from stand_master.config import HeartbeatConfig
+from jojo.config import HeartbeatConfig
 
 logger = logging.getLogger(__name__)
 

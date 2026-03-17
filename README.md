@@ -1,55 +1,66 @@
-# stand-master
+# JoJo's Bizarre Agent
 
-**STAR PLATINUM（白金之星）** — A multi-agent orchestrator built on the JoJo Stand architecture.
+**JoJo（ジョジョ）** — A multi-agent orchestrator built on the Stand architecture from JoJo's Bizarre Adventure.
 
-STAR PLATINUM is the primary agent. It processes tasks directly or summons specialised sub-agents (**Stands**) via the **GOLD EXPERIENCE** for tasks that require specific capabilities.
+JoJo is the main protagonist. Like the JoJos across each season, he can channel different **JoJo Stand personas** — each with its own philosophy, system prompt, and approach to problem-solving. All personas share JoJo's memory.
+
+Only **GOLD EXPERIENCE** can spawn independent sub-agent **Stands** for specialised tasks.
 
 ## Architecture
 
 ```
-                    ┌─────────────────────────┐
-                    │     STAR PLATINUM        │
-                    │     （白金之星）           │
-                    │   Main Orchestrator      │
-                    │   core/agent_loop.py     │
-                    └──────────┬──────────────┘
-                               │
-                    ┌──────────▼──────────────┐
-                    │      GOLD EXPERIENCE         │
-                    │    （スタンドの矢）        │
-                    │    stands/gold_experience.py       │
-                    └──┬───┬────┬───┬──────────┘
-         ┌─────────────┘   │    │   └──────────────┐
-         ▼                 ▼    ▼                  ▼
-  ┌─────────────┐  ┌──────────┐  ┌───────────┐  ┌───────────────┐
-  │  THE WORLD  │  │HIEROPHANT│  │  HARVEST  │  │ SHEER HEART   │
-  │ ザ・ワールド  │  │  GREEN   │  │ ハーヴェスト│  │    ATTACK     │
-  │             │  │  法皇の緑  │  │           │  │シアーハートアタック│
-  │ Close-Range │  │Long-Range│  │  Colony   │  │  Automatic    │
-  │  in-process │  │ subagent │  │ in-process│  │  subagent     │
-  └─────────────┘  └──────────┘  └───────────┘  └───────────────┘
-         ▼
-  ┌─────────────┐
-  │    CRAZY    │
-  │   DIAMOND   │
-  │クレイジー・   │
-  │ダイヤモンド  │
-  │ Restoration │
-  │ in-process  │
-  └─────────────┘
+                         ┌─────────────────────────────────┐
+                         │           JoJo（ジョジョ）        │
+                         │         Main Orchestrator        │
+                         │         core/jojo.py             │
+                         │                                  │
+                         │   Heartbeat · Memory · Persona   │
+                         └───────────────┬─────────────────┘
+                                         │ channels one of:
+        ┌──────────┬──────────┬──────────┼──────────┬──────────┐
+        ▼          ▼          ▼          ▼          ▼          ▼
+  ┌───────────┐┌──────────┐┌──────────┐┌──────────┐┌────────┐┌──────────┐
+  │   STAR    ││  CRAZY   ││   GOLD   ││  STONE   ││  TUSK  ││ SOFT &   │
+  │ PLATINUM  ││ DIAMOND  ││EXPERIENCE││  FREE    ││        ││   WET    │
+  │  Part 3   ││  Part 4  ││  Part 5  ││  Part 6  ││ Part 7 ││  Part 8  │
+  │ Precision ││ Recovery ││Orchestrat││ Decompose││Iterativ││ Extract  │
+  └───────────┘└──────────┘└────┬─────┘└──────────┘└────────┘└──────────┘
+                                │ spawns sub-agents:
+               ┌────────────────┼────────────────┐
+               ▼                ▼                ▼
+        ┌─────────────┐  ┌──────────┐  ┌───────────────┐
+        │  THE WORLD  │  │HIEROPHANT│  │    HARVEST    │
+        │ ザ・ワールド  │  │  GREEN   │  │  ハーヴェスト  │
+        │ Close-Range │  │Long-Range│  │    Colony     │
+        │ in-process  │  │ subagent │  │  in-process   │
+        └─────────────┘  └──────────┘  └───────────────┘
+                                       ┌───────────────┐
+                                       │ SHEER HEART   │
+                                       │    ATTACK     │
+                                       │  Automatic    │
+                                       │   subagent    │
+                                       └───────────────┘
 ```
 
-### The Five Stands
+### JoJo Stand Personas (how JoJo thinks)
+
+| Persona | Part | Stand User | Philosophy |
+|---|---|---|---|
+| **STAR PLATINUM** | 3 | Jotaro Kujo | Direct, precise, no-nonsense execution |
+| **CRAZY DIAMOND** | 4 | Josuke Higashikata | Diagnose, restore, heal the system |
+| **GOLD EXPERIENCE** | 5 | Giorno Giovanna | Break into sub-tasks, spawn agents, synthesise |
+| **STONE FREE** | 6 | Jolyne Cujoh | Unravel complexity, find connections |
+| **TUSK** | 7 | Johnny Joestar | Iterative deepening (Act 1→4) |
+| **SOFT & WET** | 8 | Josuke (Gappy) | Extract, isolate, purify |
+
+### Spawnable Stands (sub-agents via Gold Experience)
 
 | Stand | Ability | Spawn Mode | Pipeline |
 |---|---|---|---|
-| **THE WORLD** | Close-Range Power | in-process | Inner ReAct loop with dedicated reasoning model and higher step budget |
-| **HIEROPHANT GREEN** | Long-Range | **subagent** | embed → vector search → SMAK relation expansion → consolidate |
-| **HARVEST** | Colony | in-process | Split sub-tasks → `asyncio.gather` parallel execution → collect |
-| **SHEER HEART ATTACK** | Automatic | **subagent** | Spawn subprocess via tmux/cron → (optional) poll → collect |
-| **CRAZY DIAMOND** | Restoration | in-process | Detect error → diagnose root cause → attempt fix → verify |
-
-HIEROPHANT GREEN and SHEER HEART ATTACK are spawned as independent subprocess via `SubAgentSpawner` (tmux or cron). They run their own pipeline inside `stands/runner.py`.
+| **THE WORLD** | Close-Range Power | in-process | Inner ReAct loop with reasoning model |
+| **HIEROPHANT GREEN** | Long-Range | subagent | embed → vector search → SMAK expansion → consolidate |
+| **HARVEST** | Colony | in-process | Split → `asyncio.gather` parallel → collect |
+| **SHEER HEART ATTACK** | Automatic | subagent | Spawn subprocess → poll → collect |
 
 ## Project Structure
 
@@ -57,23 +68,29 @@ HIEROPHANT GREEN and SHEER HEART ATTACK are spawned as independent subprocess vi
 stand-master/
 ├── agent.yaml                          # Main configuration
 ├── pyproject.toml
-└── src/stand_master/
-    ├── main.py                         # Thin entry point (bootstrap + repl)
+└── src/jojo/
+    ├── main.py                         # Thin entry point
     ├── bootstrap.py                    # DI container — wires all dependencies
-    ├── repl.py                         # Interactive REPL — handles user I/O only
+    ├── repl.py                         # Interactive REPL
     ├── config.py                       # YAML config with ${VAR:-default} substitution
     ├── core/
-    │   ├── agent_loop.py               # STAR PLATINUM ReAct loop
+    │   ├── jojo.py                     # JoJo main orchestrator (persona switching)
     │   ├── context_manager.py          # Token window / sliding history
-    │   └── prompt_engine.py            # System prompt assembly
-    ├── stands/
-    │   ├── base.py                     # Stand ABC, StandType, StandStatus, SpawnMode
-    │   ├── arrow.py                    # GoldExperience factory
+    │   └── prompt_engine.py            # Shared prompt utilities
+    ├── jojo_stands/                    # JoJo Stand personas (how JoJo thinks)
+    │   ├── base.py                     # JoJoStand ABC, JoJoStandType, StandProfile
+    │   ├── star_platinum.py            # Part 3 — precision execution
+    │   ├── crazy_diamond.py            # Part 4 — recovery & restoration
+    │   ├── gold_experience.py          # Part 5 — sub-agent orchestration
+    │   ├── stone_free.py               # Part 6 — decomposition & connection
+    │   ├── tusk.py                     # Part 7 — iterative deepening (Acts 1-4)
+    │   └── soft_and_wet.py             # Part 8 — extraction & isolation
+    ├── stands/                         # Spawnable Stands (sub-agents)
+    │   ├── base.py                     # Stand ABC, StandType, SpawnMode
     │   ├── the_world.py                # Close-Range Power (in-process)
     │   ├── hierophant_green.py         # Long-Range RAG (subagent)
     │   ├── harvest.py                  # Colony parallel (in-process)
     │   ├── sheer_heart_attack.py       # Automatic background (subagent)
-    │   ├── crazy_diamond.py            # Restoration / error recovery (in-process)
     │   └── runner.py                   # Subprocess entry for subagent Stands
     ├── mcp/
     │   ├── client.py                   # MCP stdio client
@@ -84,7 +101,7 @@ stand-master/
     │   └── summarizer.py              # LLM-based conversation compression
     └── services/
         ├── permission.py               # Glob-based allow/deny/confirm rules
-        ├── heartbeat.py                # Async periodic health checks
+        ├── heartbeat.py                # Async periodic health checks (belongs to JoJo)
         ├── email_notifier.py           # Notifications via ddi_api.pl
         └── subagent.py                 # tmux/cron spawner (1-level depth limit)
 ```
@@ -110,87 +127,54 @@ pip install -e ".[dev]"
 
 Edit `agent.yaml`. All values support `${VAR:-default}` env substitution.
 
-```yaml
-llm:
-  base_url: ${LLM_BASE_URL:-http://localhost:11517/v1}
-  model: ${LLM_MODEL:-gpt-oss-120b}
-  api_key: ${LLM_API_KEY:-EMPTY}
-  models:
-    reasoning: qwen3_235B_A22B    # Used by THE WORLD for deep reasoning
-
-embedding:
-  api_base: ${EMBEDDING_API_BASE:-http://localhost:11434}
-  model: ${EMBEDDING_MODEL:-nomic-embed-text}
-
-smak:
-  workspace_config: ./workspace_config.yaml
-
-memory:
-  storage_dir: ./agent_data/memory
-  auto_memorize: true
-
-subagent:
-  enabled: true
-  mode: tmux          # tmux | cron
-  max_concurrent: 3
-  timeout_seconds: 600
-  work_dir: ./agent_data/subagent_tasks/
-```
-
-The embedding dimension is determined at runtime by probing the embedding endpoint — it is never hard-coded.
-
 ## Usage
 
 ```bash
 # Run with default agent.yaml
-stand-master
+jojo
 
 # Specify a config file
-stand-master /path/to/my-config.yaml
-
-# Or run as a module
-python -m stand_master.main agent.yaml
+jojo /path/to/my-config.yaml
 ```
 
 Interactive session:
 
 ```
-STAR PLATINUM> What does the auth module do?
+JoJo> What does the auth module do?
 
-[HIEROPHANT GREEN] Task completed.
+[STAR PLATINUM | HIEROPHANT GREEN] Task completed.
 Output: [SMAK #1] (source_code) auth.py — handles JWT validation ...
 
-The auth module validates JWT tokens on every request. It uses ...
+The auth module validates JWT tokens on every request.
 
-  [1 tool(s) | Stands: hierophant_green | 3 step(s)]
+  [STAR PLATINUM | 1 tool(s) | Stands: hierophant_green | 3 step(s)]
 
-STAR PLATINUM> exit
+JoJo> /persona tusk
+  Switching to TUSK（タスク）
+
+TUSK> Research how the payment system works
+  [Act 1 — broad scan...]
+  [Act 2 — focused search...]
+  [Act 3 — deep analysis...]
+  [Act 4 — final answer]
+
+  [TUSK | 8 tool(s) | 12 step(s)]
+
+JoJo> exit
 やれやれだぜ… Goodbye!
 ```
-
-## Summoning Stands
-
-STAR PLATINUM can be instructed to use a specific Stand via the `summon_stand` tool:
-
-| Command | Stand | When to use |
-|---|---|---|
-| `summon_stand("the_world")` | THE WORLD | Complex multi-step reasoning, hard analytical problems |
-| `summon_stand("hierophant_green")` | HIEROPHANT GREEN | Semantic search, RAG retrieval, codebase exploration |
-| `summon_stand("harvest")` | HARVEST | Batch operations, parallel sub-tasks |
-| `summon_stand("sheer_heart_attack")` | SHEER HEART ATTACK | Long-running background jobs, fire-and-forget |
-| `summon_stand("crazy_diamond")` | CRAZY DIAMOND | Error recovery, diagnosing failed pipelines, self-healing |
 
 ## Design Principles
 
 | Principle | Implementation |
 |---|---|
-| **Single Responsibility** | `bootstrap.py` wires deps, `repl.py` handles I/O, `agent_loop.py` runs logic |
-| **Open/Closed** | New Stands added without modifying existing ones — extend `StandType` and `GoldExperience` |
-| **Liskov Substitution** | `Stand` ABC guarantees all Stands share the same `execute()` interface |
-| **Interface Segregation** | `EmbeddingModel`, `VectorStore`, `QueryServiceLike` protocols expose minimal surfaces |
-| **Dependency Inversion** | `AgentLoop` depends on abstractions; concrete deps injected by `bootstrap.py` |
+| **Single Responsibility** | `bootstrap.py` wires deps, `repl.py` handles I/O, `jojo.py` orchestrates |
+| **Open/Closed** | New JoJo Stands added without modifying existing ones — extend `JoJoStandType` |
+| **Liskov Substitution** | `JoJoStand` ABC guarantees all personas share `build_system_prompt()` + `run()` |
+| **Interface Segregation** | `EmbeddingModel`, `VectorStore`, `QueryServiceLike` expose minimal surfaces |
+| **Dependency Inversion** | `JoJo` depends on abstractions; concrete deps injected by `bootstrap.py` |
 | **Subagent depth limit** | `AGENT_DEPTH` env var prevents recursive spawning |
-| **Dynamic embedding dim** | `FaissEngine` dimension set from `embedder.get_embedding_dimension()` at startup |
+| **Dynamic embedding dim** | Dimension set from `embedder.get_embedding_dimension()` at startup |
 
 ## License
 

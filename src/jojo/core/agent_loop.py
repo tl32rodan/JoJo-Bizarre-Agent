@@ -12,14 +12,14 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from stand_master.config import AgentConfig
-from stand_master.core.context_manager import ContextManager
-from stand_master.core.prompt_engine import build_system_prompt
-from stand_master.memory.store import MemoryStore
-from stand_master.mcp.tool_registry import ToolRegistry
-from stand_master.services.permission import PermissionManager, PermissionVerdict
-from stand_master.stands.base import StandStatus, STAND_PROFILES
-from stand_master.stands.gold_experience import GoldExperience
+from jojo.config import AgentConfig
+from jojo.core.context_manager import ContextManager
+from jojo.core.prompt_engine import build_system_prompt
+from jojo.memory.store import MemoryStore
+from jojo.mcp.tool_registry import ToolRegistry
+from jojo.services.permission import PermissionManager, PermissionVerdict
+from jojo.stands.base import StandStatus, STAND_PROFILES
+from jojo.stands.gold_experience import GoldExperience
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from xml.etree.ElementTree import Element, SubElement, tostring
 
-from stand_master.config import EmailConfig
+from jojo.config import EmailConfig
 
 logger = logging.getLogger(__name__)
 

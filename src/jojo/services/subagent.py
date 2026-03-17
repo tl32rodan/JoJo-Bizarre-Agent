@@ -12,7 +12,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from stand_master.config import SubAgentConfig
+from jojo.config import SubAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class SubAgentSpawner:
 
     def _spawn_tmux(self, handle: SubAgentHandle) -> None:
         env = {**os.environ, _DEPTH_ENV_VAR: "1"}
-        cmd = f"python -m stand_master.stands.runner {handle.task_id} --work-dir {handle.work_dir}"
+        cmd = f"python -m jojo.stands.runner {handle.task_id} --work-dir {handle.work_dir}"
         subprocess.run(
             ["tmux", "new-window", "-d", cmd],
             env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
@@ -122,7 +122,7 @@ class SubAgentSpawner:
 
     def _spawn_cron(self, handle: SubAgentHandle) -> None:
         env = {**os.environ, _DEPTH_ENV_VAR: "1"}
-        cmd = f"python -m stand_master.stands.runner {handle.task_id} --work-dir {handle.work_dir}"
+        cmd = f"python -m jojo.stands.runner {handle.task_id} --work-dir {handle.work_dir}"
         subprocess.run(
             ["bash", "-c", f'echo "{cmd}" | at now'],
             env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,

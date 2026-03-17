@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from stand_master.config import PermissionConfig
+from jojo.config import PermissionConfig
 
 
 class PermissionVerdict(Enum):

@@ -6,8 +6,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Awaitable
 
-from stand_master.mcp.client import MCPClientManager, ToolInfo
-from stand_master.mcp.skill_loader import SkillInfo
+from jojo.mcp.client import MCPClientManager, ToolInfo
+from jojo.mcp.skill_loader import SkillInfo
 
 logger = logging.getLogger(__name__)
 

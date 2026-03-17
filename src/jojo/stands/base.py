@@ -10,11 +10,11 @@ from typing import Any
 
 
 class StandType(Enum):
+    """Spawnable Stands — summoned by Gold Experience as sub-agents."""
     THE_WORLD = "the_world"
     HIEROPHANT_GREEN = "hierophant_green"
     HARVEST = "harvest"
     SHEER_HEART_ATTACK = "sheer_heart_attack"
-    CRAZY_DIAMOND = "crazy_diamond"
 
 
 class StandStatus(Enum):
@@ -65,15 +65,6 @@ STAND_PROFILES: dict[StandType, dict[str, str]] = {
         "description": (
             "An autonomous bomb that tracks its target without user control. "
             "Spawned as a fire-and-forget background subagent process."
-        ),
-    },
-    StandType.CRAZY_DIAMOND: {
-        "name": "CRAZY DIAMOND（クレイジー・ダイヤモンド）",
-        "ability": "Restoration",
-        "spawn_mode": "in_process",
-        "description": (
-            "Restores anything to a previous state. Detects pipeline errors, "
-            "diagnoses root causes, attempts automatic fixes, and verifies recovery."
         ),
     },
 }

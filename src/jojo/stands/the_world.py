@@ -11,7 +11,7 @@ import json
 import logging
 from typing import Any
 
-from stand_master.stands.base import Stand, StandResult, StandStatus, StandType
+from jojo.stands.base import Stand, StandResult, StandStatus, StandType
 
 logger = logging.getLogger(__name__)
 

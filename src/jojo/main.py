@@ -6,8 +6,8 @@ import asyncio
 import logging
 import sys
 
-from stand_master.bootstrap import build_app, teardown_app
-from stand_master.repl import run_repl
+from jojo.bootstrap import build_app, teardown_app
+from jojo.repl import run_repl
 
 
 async def async_main(config_path: str = "agent.yaml") -> None:

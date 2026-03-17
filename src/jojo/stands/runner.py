@@ -6,7 +6,7 @@ process. It reads input.json, runs the Stand's pipeline, and writes
 output.json or error.txt.
 
 Usage:
-    python -m stand_master.stands.runner <task_id> --work-dir <path>
+    python -m jojo.stands.runner <task_id> --work-dir <path>
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ def _setup_stand(stand_type: str, task: str, context: dict) -> object:
     if stand_type == "hierophant_green":
         from smak.utils.embedding import InternalNomicEmbedding
         from faiss_storage_lib.engine.faiss_engine import FaissEngine
-        from stand_master.memory.store import MemoryStore
+        from jojo.memory.store import MemoryStore
 
         embedder = InternalNomicEmbedding()
         dimension = embedder.get_embedding_dimension()
@@ -42,7 +42,7 @@ def _setup_stand(stand_type: str, task: str, context: dict) -> object:
         except Exception:
             logger.info("SMAK QueryService not available in subagent")
 
-        from stand_master.stands.hierophant_green import HierophantGreen
+        from jojo.stands.hierophant_green import HierophantGreen
         return HierophantGreen(
             memory_store=memory,
             query_service=query_service,
@@ -52,10 +52,10 @@ def _setup_stand(stand_type: str, task: str, context: dict) -> object:
     if stand_type == "sheer_heart_attack":
         # SHEER HEART ATTACK in subagent mode runs its inner task directly
         # (it doesn't re-spawn; the spawning already happened)
-        from stand_master.stands.hierophant_green import HierophantGreen
+        from jojo.stands.hierophant_green import HierophantGreen
         from smak.utils.embedding import InternalNomicEmbedding
         from faiss_storage_lib.engine.faiss_engine import FaissEngine
-        from stand_master.memory.store import MemoryStore
+        from jojo.memory.store import MemoryStore
 
         embedder = InternalNomicEmbedding()
         dimension = embedder.get_embedding_dimension()
@@ -109,7 +109,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     if len(sys.argv) < 2:
-        print("Usage: python -m stand_master.stands.runner <task_id> --work-dir <path>")
+        print("Usage: python -m jojo.stands.runner <task_id> --work-dir <path>")
         sys.exit(1)
 
     work_dir = None
