@@ -1,188 +1,127 @@
 """JoJo（ジョジョ）— Main orchestrator.
 
-JoJo is the protagonist. He can channel any of his JoJo Stand personas
-(Star Platinum, Crazy Diamond, Gold Experience, Stone Free, Tusk, Soft & Wet),
-each with its own philosophy and system prompt.
+JoJo decides which Stand to channel based on the task, then delegates
+execution to that Stand's `execute()` method.
 
-JoJo decides which persona to adopt based on the task at hand,
-then delegates execution to that persona's `run()` method.
-
-Heartbeat belongs to JoJo — he is always alive, regardless of which
-Stand persona is active.
+- Star Platinum is the default for general tasks.
+- Gold Experience is chosen when sub-agent orchestration is needed.
+- JoJo can channel ANY registered Stand — no hierarchy.
+- Heartbeat belongs to JoJo.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any
 
-from jojo.config import AgentConfig
-from jojo.core.context_manager import ContextManager
-from jojo.jojo_stands.base import JoJoStandType, JOJO_STAND_PROFILES
-from jojo.memory.store import MemoryStore
-from jojo.mcp.tool_registry import ToolRegistry
-from jojo.services.permission import PermissionManager, PermissionVerdict
+from jojo.stands.base import Stand, StandType, StandResult, STAND_PROFILES
 
 logger = logging.getLogger(__name__)
-
-
-class ChatModel(Protocol):
-    def invoke(self, messages: list[dict[str, Any]]) -> Any: ...
-    def bind_tools(self, tools: list[Any]) -> ChatModel: ...
-
-
-@dataclass(frozen=True)
-class ToolCallRecord:
-    name: str
-    arguments: dict[str, Any]
-    result: str
 
 
 @dataclass(frozen=True)
 class JoJoResult:
     answer: str
-    persona: str
-    tool_calls: list[ToolCallRecord] = field(default_factory=list)
+    stand: str
     steps: int = 0
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
     stands_summoned: list[str] = field(default_factory=list)
 
 
-# Map natural-language hints to persona types for auto-selection
-_PERSONA_HINTS: dict[JoJoStandType, list[str]] = {
-    JoJoStandType.STAR_PLATINUM: [
-        "quick", "direct", "simple", "execute", "do it", "just",
+# Keyword hints for auto-selecting a Stand
+_STAND_HINTS: dict[StandType, list[str]] = {
+    StandType.GOLD_EXPERIENCE: [
+        "spawn", "orchestrate", "complex", "multi-step", "parallel",
+        "sub-agent", "subagent", "delegate", "break down",
     ],
-    JoJoStandType.CRAZY_DIAMOND: [
-        "fix", "repair", "error", "broken", "bug", "heal", "restore", "recover", "debug",
-    ],
-    JoJoStandType.GOLD_EXPERIENCE: [
-        "spawn", "orchestrate", "complex", "multi", "parallel", "search",
-        "retrieve", "rag", "background", "sub-agent", "subagent",
-    ],
-    JoJoStandType.STONE_FREE: [
-        "decompose", "analyse", "analyze", "connect", "relate", "unravel",
-        "dependency", "architecture", "structure",
-    ],
-    JoJoStandType.TUSK: [
-        "research", "deep", "investigate", "explore", "iterative", "drill",
-        "thorough", "comprehensive",
-    ],
-    JoJoStandType.SOFT_AND_WET: [
-        "extract", "refactor", "isolate", "purify", "clean", "strip",
-        "simplify", "property",
-    ],
+    StandType.STAR_PLATINUM: [],  # default fallback
 }
 
 
 class JoJo:
-    """The main JoJo protagonist — channels different Stand personas.
+    """The main JoJo protagonist — channels Stands.
 
-    「やれやれだぜ…今回はどのスタンドで行くか。」
+    「やれやれだぜ…」
     """
 
-    def __init__(
-        self,
-        llm: ChatModel,
-        tool_registry: ToolRegistry,
-        memory: MemoryStore,
-        permissions: PermissionManager,
-        config: AgentConfig,
-    ) -> None:
-        self._llm = llm
-        self._tools = tool_registry
+    def __init__(self, memory: Any, config: Any) -> None:
         self._memory = memory
-        self._permissions = permissions
         self._config = config
-        self._personas: dict[JoJoStandType, Any] = {}
-        self._current_persona: JoJoStandType | None = None
+        self._stands: dict[StandType, Stand] = {}
+        self._current_stand: StandType | None = None
 
-    def register_persona(self, stand_type: JoJoStandType, persona: Any) -> None:
-        """Register a JoJo Stand persona."""
-        self._personas[stand_type] = persona
-
-    @property
-    def current_persona(self) -> JoJoStandType | None:
-        return self._current_persona
+    def register_stand(self, stand: Stand) -> None:
+        """Register a Stand that JoJo can channel."""
+        self._stands[stand.stand_type] = stand
 
     @property
-    def available_personas(self) -> list[JoJoStandType]:
-        return list(self._personas.keys())
+    def current_stand(self) -> StandType | None:
+        return self._current_stand
 
-    def choose_persona(self, user_input: str) -> JoJoStandType:
-        """Auto-select the best JoJo Stand persona for the task.
+    @property
+    def available_stands(self) -> list[StandType]:
+        return list(self._stands.keys())
 
-        Uses keyword matching as a heuristic. Falls back to Star Platinum
-        (the default, direct-execution persona).
-        """
+    def choose_stand(self, user_input: str) -> StandType:
+        """Auto-select the best Stand for the task."""
         input_lower = user_input.lower()
 
-        scores: dict[JoJoStandType, int] = {st: 0 for st in self._personas}
-        for stand_type, hints in _PERSONA_HINTS.items():
-            if stand_type not in self._personas:
+        for stand_type, hints in _STAND_HINTS.items():
+            if stand_type not in self._stands:
                 continue
             for hint in hints:
                 if hint in input_lower:
-                    scores[stand_type] += 1
+                    return stand_type
 
-        best = max(scores, key=scores.get)  # type: ignore[arg-type]
-        if scores[best] == 0:
-            # Default to Star Platinum
-            return JoJoStandType.STAR_PLATINUM
+        # Default to Star Platinum
+        if StandType.STAR_PLATINUM in self._stands:
+            return StandType.STAR_PLATINUM
 
-        return best
+        # Fallback to first registered stand
+        return next(iter(self._stands))
 
     async def run(
         self,
         user_input: str,
         *,
-        persona: JoJoStandType | None = None,
-        max_steps: int = 15,
+        stand: StandType | None = None,
+        time_stop: bool = False,
+        max_steps: int | None = None,
     ) -> JoJoResult:
-        """Process user input through the chosen JoJo Stand persona."""
-        # Choose persona
-        chosen = persona or self.choose_persona(user_input)
-        if chosen not in self._personas:
-            chosen = JoJoStandType.STAR_PLATINUM
+        """Process user input through the chosen Stand."""
+        chosen = stand or self.choose_stand(user_input)
+        if chosen not in self._stands:
+            chosen = StandType.STAR_PLATINUM
 
-        self._current_persona = chosen
-        stand = self._personas[chosen]
-        profile = JOJO_STAND_PROFILES[chosen]
+        self._current_stand = chosen
+        stand_instance = self._stands[chosen]
+        profile = STAND_PROFILES[chosen]
 
         logger.info("JoJo channels %s（%s）", profile.name, profile.name_jp)
 
-        context = {"max_steps": max_steps}
-        result = await stand.run(user_input, context)
+        context: dict[str, Any] = {}
+        if max_steps:
+            context["max_steps"] = max_steps
+        if time_stop:
+            context["time_stop"] = True
+        if hasattr(self._config, "session"):
+            context["max_history_tokens"] = self._config.session.max_history_tokens
 
-        # Auto-memorize if configured
-        if self._config.memory.auto_memorize and result.get("tool_calls"):
-            self._memory.store(
-                f"Q: {user_input}\nA: {result['answer'][:300]}",
-                {"type": "conversation", "persona": chosen.value},
-            )
+        result: StandResult = await stand_instance.execute(user_input, context)
+
+        # Auto-memorize
+        if hasattr(self._config, "memory") and self._config.memory.auto_memorize:
+            if result.metadata.get("tool_calls"):
+                self._memory.store(
+                    f"Q: {user_input}\nA: {str(result.output)[:300]}",
+                    {"type": "conversation", "stand": chosen.value},
+                )
 
         return JoJoResult(
-            answer=result["answer"],
-            persona=profile.name,
-            tool_calls=[
-                ToolCallRecord(name=tc["name"], arguments=tc.get("arguments", {}), result=tc.get("result", ""))
-                for tc in result.get("tool_calls", [])
-            ],
-            steps=result.get("steps", 0),
-            stands_summoned=[
-                s.get("stand", "") for s in result.get("stands_summoned", [])
-            ],
+            answer=str(result.output) if result.output else (result.error or "No output."),
+            stand=profile.name,
+            steps=result.metadata.get("steps", 0),
+            tool_calls=result.metadata.get("tool_calls", []),
+            stands_summoned=result.metadata.get("stands_used", []),
         )
-
-    def describe_personas(self) -> str:
-        """Describe all available JoJo Stand personas."""
-        lines = ["## JoJo Stand Personas\n"]
-        for st in self._personas:
-            p = JOJO_STAND_PROFILES[st]
-            lines.append(
-                f"- **{p.name}**（{p.name_jp}）— {p.user} (Part {p.part})\n"
-                f"  Ability: {p.ability_name} — {p.ability_description}\n"
-                f"  Philosophy: {p.philosophy}\n"
-            )
-        return "\n".join(lines)

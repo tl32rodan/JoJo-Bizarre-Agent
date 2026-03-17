@@ -1,20 +1,14 @@
-# ┌──────────────────────────────────────────────────────────────┐
-# │  JoJo（ジョジョ）— Stand Master configuration                │
-# │                                                            │
-# │  JoJo Stand Personas:                                      │
-# │    STAR PLATINUM     — Part 3 · Precision & direct exec    │
-# │    CRAZY DIAMOND     — Part 4 · Restoration & recovery     │
-# │    GOLD EXPERIENCE   — Part 5 · Sub-agent orchestration    │
-# │    STONE FREE        — Part 6 · Decomposition & connection │
-# │    TUSK              — Part 7 · Iterative deepening        │
-# │    SOFT & WET        — Part 8 · Extraction & isolation     │
-# │                                                            │
-# │  Spawnable Stands (via Gold Experience):                   │
-# │    THE WORLD          — Close-Range Power (in-process)     │
-# │    HIEROPHANT GREEN   — Long-Range RAG    (subagent)       │
-# │    HARVEST            — Colony parallel   (in-process)     │
-# │    SHEER HEART ATTACK — Automatic bg      (subagent)       │
-# └──────────────────────────────────────────────────────────────┘
+# ┌──────────────────────────────────────────────────────┐
+# │  JoJo（ジョジョ）— Stand Master                      │
+# │                                                      │
+# │  Stands:                                             │
+# │    STAR PLATINUM      — Precision + Time Stop        │
+# │    GOLD EXPERIENCE    — Life Giver (sub-agent spawn) │
+# │    THE WORLD          — Time Stop (deep reasoning)   │
+# │    HIEROPHANT GREEN   — Emerald Splash (RAG)         │
+# │    HARVEST            — Colony (parallel)            │
+# │    SHEER HEART ATTACK — Automatic (background)       │
+# └──────────────────────────────────────────────────────┘
 
 llm:
   base_url: ${LLM_BASE_URL:-http://f15dtpai1:11517/v1}
@@ -22,7 +16,7 @@ llm:
   api_key: ${LLM_API_KEY:-EMPTY}
   models:
     default: gpt-oss-120b
-    reasoning: qwen3_235B_A22B           # Used by THE WORLD for deep reasoning
+    reasoning: qwen3_235B_A22B           # Used by THE WORLD + Star Platinum Time Stop
 
 embedding:
   api_base: ${EMBEDDING_API_BASE:-http://f15dtpai1:11434}

@@ -1,4 +1,11 @@
-"""Base Stand class and shared types for the Stand system."""
+"""Base Stand class and shared types for the Stand system.
+
+Stand  = the agent entity   (e.g. STAR PLATINUM, THE WORLD)
+Ability = what it does       (e.g. Precision ReAct, Time Stop)
+
+Every Stand has exactly one primary ability that defines its pipeline.
+JoJo can channel any Stand — there is no hierarchy among them.
+"""
 
 from __future__ import annotations
 
@@ -10,11 +17,13 @@ from typing import Any
 
 
 class StandType(Enum):
-    """Spawnable Stands — summoned by Gold Experience as sub-agents."""
-    THE_WORLD = "the_world"
-    HIEROPHANT_GREEN = "hierophant_green"
-    HARVEST = "harvest"
-    SHEER_HEART_ATTACK = "sheer_heart_attack"
+    """All available Stands."""
+    STAR_PLATINUM = "star_platinum"       # default ReAct + Time Stop ability
+    GOLD_EXPERIENCE = "gold_experience"   # sub-agent spawner
+    THE_WORLD = "the_world"              # deep reasoning (spawnable)
+    HIEROPHANT_GREEN = "hierophant_green"  # RAG pipeline
+    HARVEST = "harvest"                   # parallel execution
+    SHEER_HEART_ATTACK = "sheer_heart_attack"  # background tasks
 
 
 class StandStatus(Enum):
@@ -30,43 +39,76 @@ class SpawnMode(Enum):
     SUBAGENT = "subagent"
 
 
-STAND_PROFILES: dict[StandType, dict[str, str]] = {
-    StandType.THE_WORLD: {
-        "name": "THE WORLD（ザ・ワールド）",
-        "ability": "Close-Range Power",
-        "spawn_mode": "in_process",
-        "description": (
-            "Stops time for deep, multi-step chain-of-thought reasoning. "
-            "Best for complex analysis requiring concentrated cognitive force."
+@dataclass(frozen=True)
+class StandProfile:
+    """Separates Stand identity from its ability."""
+    name: str
+    name_jp: str
+    user: str
+    part: int
+    ability_name: str
+    ability_description: str
+    spawn_mode: SpawnMode = SpawnMode.IN_PROCESS
+
+
+STAND_PROFILES: dict[StandType, StandProfile] = {
+    StandType.STAR_PLATINUM: StandProfile(
+        name="STAR PLATINUM",
+        name_jp="スタープラチナ",
+        user="Jotaro Kujo",
+        part=3,
+        ability_name="Precision + Time Stop",
+        ability_description=(
+            "Default general-purpose ReAct agent. "
+            "Can activate The World's Time Stop for deep reasoning with a dedicated model."
         ),
-    },
-    StandType.HIEROPHANT_GREEN: {
-        "name": "HIEROPHANT GREEN（法皇の緑）",
-        "ability": "Long-Range",
-        "spawn_mode": "subagent",
-        "description": (
-            "Extends an Emerald Splash across knowledge bases for semantic "
-            "retrieval and RAG search. Spawned as a subagent process."
-        ),
-    },
-    StandType.HARVEST: {
-        "name": "HARVEST（ハーヴェスト）",
-        "ability": "Colony",
-        "spawn_mode": "in_process",
-        "description": (
-            "Splits into many small units that work in parallel. "
-            "Best for batch operations and concurrent sub-tasks."
-        ),
-    },
-    StandType.SHEER_HEART_ATTACK: {
-        "name": "SHEER HEART ATTACK（シアーハートアタック）",
-        "ability": "Automatic",
-        "spawn_mode": "subagent",
-        "description": (
-            "An autonomous bomb that tracks its target without user control. "
-            "Spawned as a fire-and-forget background subagent process."
-        ),
-    },
+        spawn_mode=SpawnMode.IN_PROCESS,
+    ),
+    StandType.GOLD_EXPERIENCE: StandProfile(
+        name="GOLD EXPERIENCE",
+        name_jp="ゴールド・エクスペリエンス",
+        user="Giorno Giovanna",
+        part=5,
+        ability_name="Life Giver",
+        ability_description="Spawns and orchestrates sub-agent Stands for complex multi-step tasks.",
+        spawn_mode=SpawnMode.IN_PROCESS,
+    ),
+    StandType.THE_WORLD: StandProfile(
+        name="THE WORLD",
+        name_jp="ザ・ワールド",
+        user="DIO",
+        part=3,
+        ability_name="Time Stop",
+        ability_description="Deep chain-of-thought reasoning with dedicated reasoning model.",
+        spawn_mode=SpawnMode.IN_PROCESS,
+    ),
+    StandType.HIEROPHANT_GREEN: StandProfile(
+        name="HIEROPHANT GREEN",
+        name_jp="法皇の緑",
+        user="Noriaki Kakyoin",
+        part=3,
+        ability_name="Emerald Splash",
+        ability_description="Semantic search & RAG — embed → vector search → SMAK expansion → consolidate.",
+        spawn_mode=SpawnMode.SUBAGENT,
+    ),
+    StandType.HARVEST: StandProfile(
+        name="HARVEST",
+        name_jp="ハーヴェスト",
+        user="Shigekiyo Yangu",
+        part=4,
+        ability_name="Colony",
+        ability_description="Parallel batch execution — splits tasks and runs concurrently.",
+        spawn_mode=SpawnMode.IN_PROCESS,
+    ),
+    StandType.SHEER_HEART_ATTACK: StandProfile(
+        name="SHEER HEART ATTACK",
+        name_jp="シアーハートアタック",
+        user="Yoshikage Kira",
+        part=4,
+        ability_name="Automatic Tracking",
+        ability_description="Fire-and-forget background tasks via subprocess.",
+        spawn_mode=SpawnMode.SUBAGENT,
+    ),
 }
 
 
@@ -81,7 +123,11 @@ class StandResult:
 
 
 class Stand(ABC):
-    """Abstract base for all Stands."""
+    """Abstract base for all Stands.
+
+    Subclass this to add new Stands — implement `execute()` with
+    whatever pipeline your ability requires.
+    """
 
     stand_type: StandType
 
@@ -98,7 +144,7 @@ class Stand(ABC):
         return self._status
 
     @property
-    def profile(self) -> dict[str, str]:
+    def profile(self) -> StandProfile:
         return STAND_PROFILES[self.stand_type]
 
     @abstractmethod
