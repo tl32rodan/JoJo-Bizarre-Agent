@@ -1,165 +1,96 @@
-# Local ReAct Agent
+# JoJo's Bizarre Agent
 
-A local, offline-capable ReAct agent built on top of **SMAK** (as a Python library) with MCP client support for external tools.
+**JoJo（ジョジョ）** — A multi-agent orchestrator inspired by JoJo's Bizarre Adventure.
+
+JoJo is the main protagonist. He channels **Stands** — each Stand is an agent
+with a distinct ability (pipeline). JoJo auto-selects the best Stand for the task,
+or you can force one manually.
+
+## Stands
+
+| Stand | Ability | Pipeline |
+|---|---|---|
+| **STAR PLATINUM** | Precision + Time Stop | Default ReAct loop. Can activate "The World" mode for deep reasoning. |
+| **GOLD EXPERIENCE** | Life Giver | Orchestrator that spawns sub-agent Stands for complex tasks. |
+| **THE WORLD** | Time Stop | Deep chain-of-thought reasoning with dedicated reasoning model. |
+| **HIEROPHANT GREEN** | Emerald Splash | Semantic search & RAG — embed → vector search → SMAK expansion. |
+| **HARVEST** | Colony | Parallel batch execution via `asyncio.gather`. |
+| **SHEER HEART ATTACK** | Automatic Tracking | Fire-and-forget background tasks via subprocess. |
+
+**Stand** = the agent entity. **Ability** = what it does.
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────┐
-│              local-react-agent                        │
-│                                                       │
-│  ┌────────────┐  ┌─────────────┐  ┌───────────────┐  │
-│  │ AgentLoop  │  │ MCPClient   │  │ MemoryStore   │  │
-│  │ (ReAct +   │  │ (filesystem │  │ (SMAK index + │  │
-│  │  bind_tools)│  │  + others)  │  │  QueryService)│  │
-│  └─────┬──────┘  └──────┬──────┘  └───────┬───────┘  │
-│        │                │                 │           │
-│  ┌─────┴──────┐  ┌──────┴──────┐  ┌──────┴────────┐  │
-│  │ ChatOpenAI │  │ Permission  │  │ SMAK library  │  │
-│  │ (OpenAI v1)│  │ Manager     │  │ (direct       │  │
-│  └────────────┘  └─────────────┘  │  Python import)│  │
-│                                   └───────────────┘  │
-│  ┌────────────┐  ┌─────────────┐  ┌───────────────┐  │
-│  │ SkillLoader│  │ Heartbeat   │  │ SubAgent      │  │
-│  │ (SKILL.md) │  │ Service     │  │ Spawner       │  │
-│  └────────────┘  └─────────────┘  └───────────────┘  │
-│  ┌─────────────────────────────┐                      │
-│  │ EmailNotifier (ddi_api.pl)  │                      │
-│  └─────────────────────────────┘                      │
-└──────────────────────────────────────────────────────┘
-         │                    │
-    ┌────┴─────┐        ┌────┴──────┐
-    │Filesystem│        │ Other MCP │
-    │MCP Server│        │ Servers   │
-    └──────────┘        └───────────┘
+                    ┌──────────────────────┐
+                    │   JoJo (orchestrator) │
+                    │   Heartbeat · Memory  │
+                    └──────────┬───────────┘
+                               │ channels
+        ┌────────┬─────────────┼─────────────┬──────────┐
+        ▼        ▼             ▼             ▼          ▼
+   STAR       GOLD          THE         HIEROPHANT   HARVEST
+  PLATINUM   EXPERIENCE    WORLD         GREEN
+  (ReAct)    (spawner)    (reasoning)    (RAG)      (parallel)
+                │                                       │
+                │ spawns                          SHEER HEART
+                ├── THE WORLD                      ATTACK
+                ├── HIEROPHANT GREEN              (background)
+                ├── HARVEST
+                └── SHEER HEART ATTACK
 ```
-
-**SMAK** is imported directly as a Python library (no MCP roundtrip for RAG).
-Only external tools (filesystem\_server, etc.) use the MCP stdio client.
 
 ## Project Structure
 
 ```
-├── agent.yaml                        # Main configuration
-├── pyproject.toml                    # Dependencies & build
-├── src/react_agent/
-│   ├── config.py                     # YAML config with ${VAR:-default} env substitution
-│   ├── main.py                       # CLI entry point
-│   ├── core/
-│   │   ├── agent_loop.py             # ReAct loop (ChatOpenAI + bind_tools)
-│   │   ├── context_manager.py        # Token window / sliding history
-│   │   └── prompt_engine.py          # System prompt assembly
-│   ├── mcp/
-│   │   ├── client.py                 # MCP stdio client for external tools
-│   │   ├── tool_registry.py          # Unified registry (SMAK + MCP + local)
-│   │   └── skill_loader.py           # SKILL.md parser
-│   ├── memory/
-│   │   ├── store.py                  # SMAK-backed memory (1-hop relation expansion)
-│   │   ├── summarizer.py             # LLM-based conversation compression
-│   │   └── fallback.py               # In-memory stubs when SMAK is absent
-│   └── services/
-│       ├── permission.py             # Glob-based allow/deny/confirm rules
-│       ├── heartbeat.py              # Async periodic health checks
-│       ├── email_notifier.py         # Notifications via ddi_api.pl
-│       └── subagent.py               # tmux/cron spawner (1-level depth limit)
-└── tests/                            # 85 unit tests
+src/jojo/
+├── main.py              # Entry point
+├── bootstrap.py         # DI container
+├── repl.py              # Interactive REPL
+├── config.py            # YAML config
+├── core/
+│   ├── jojo.py          # Main orchestrator
+│   ├── context_manager.py
+│   └── prompt_engine.py
+├── stands/
+│   ├── base.py          # Stand ABC, StandType, StandProfile
+│   ├── star_platinum.py # Precision + Time Stop
+│   ├── gold_experience.py # Sub-agent spawner
+│   ├── the_world.py     # Deep reasoning
+│   ├── hierophant_green.py # RAG
+│   ├── harvest.py       # Parallel
+│   ├── sheer_heart_attack.py # Background
+│   └── runner.py        # Subprocess entry
+├── mcp/                 # MCP tool integration
+├── memory/              # Vector memory (FAISS + SMAK)
+└── services/            # Heartbeat, permissions, email, subagent
 ```
-
-## Prerequisites
-
-- Python 3.10+
-- A local OpenAI-compatible LLM endpoint (e.g. vLLM serving `gpt-oss-120b`)
-
-Optional (for full RAG memory):
-- [SMAK](https://github.com/tl32rodan/SMAK) — semantic search + 1-hop relation expansion
-- [faiss-storage-lib](https://github.com/tl32rodan/faiss-storage-lib) — FAISS + SQLite vector store
-
-## Installation
-
-```bash
-pip install -e .
-
-# With SMAK support (recommended for production)
-pip install -e ".[smak]"
-
-# Development
-pip install -e ".[dev]"
-```
-
-## Configuration
-
-Copy and edit `agent.yaml`:
-
-```yaml
-llm:
-  base_url: ${LLM_BASE_URL:-http://f15dtpai1:11517/v1}
-  model: ${LLM_MODEL:-gpt-oss-120b}
-  api_key: ${LLM_API_KEY:-EMPTY}
-
-memory:
-  storage_dir: ./agent_data/memory
-  auto_memorize: true
-
-mcp_servers:
-  filesystem:
-    command: python
-    args: ["-m", "filesystem_server.server"]
-    env:
-      ROOT_DIR: ${WORKSPACE_ROOT:-.}
-
-permissions:
-  mode: ask        # ask | allow_all | deny_all
-  require_confirmation:
-    - delete_file
-    - write_file
-    - run_terminal_command
-```
-
-Environment variables use `${VAR:-default}` syntax and are resolved at load time.
 
 ## Usage
 
 ```bash
-# Run with default agent.yaml
-react-agent
-
-# Or specify a config file
-react-agent /path/to/my-config.yaml
-
-# Or run directly
-python -m react_agent.main agent.yaml
+pip install -e .
+jojo
 ```
 
-Interactive session:
-
 ```
-Local ReAct Agent ready. Type 'exit' or 'quit' to leave.
-> What files are in the current directory?
+JoJo> What does the auth module do?
+  [STAR PLATINUM | 2 tool(s) | 3 step(s)]
 
-The current directory contains: README.md, src/, tests/, agent.yaml ...
+JoJo> /timestop Explain the payment system architecture in detail
+  「スタープラチナ ザ・ワールド！」
+  [STAR PLATINUM | 5 tool(s) | 12 step(s)]
 
-  [Used 1 tool(s) in 2 step(s)]
-> exit
-Goodbye!
-```
-
-## Testing
-
-```bash
-pytest tests/ -v
+JoJo> /stand gold_experience
+  → GOLD EXPERIENCE（ゴールド・エクスペリエンス）
 ```
 
-All tests run without network access or external services.
+## Adding a New Stand
 
-## Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| SMAK as library, not MCP | No IPC overhead for RAG; direct access to 1-hop relation expansion |
-| `ChatOpenAI.bind_tools()` | Structured tool calling — no fragile text parsing |
-| Protocol-based interfaces | `MemoryStore` accepts any embedding/vector store via duck typing |
-| 1-level subagent limit | `AGENT_DEPTH` env var prevents recursive spawning |
-| Fallback stubs | Agent starts without SMAK/FAISS using in-memory replacements |
+1. Add a value to `StandType` in `stands/base.py`
+2. Add a `StandProfile` to `STAND_PROFILES`
+3. Create `stands/my_stand.py` implementing the `Stand` ABC
+4. Register it in `bootstrap.py`'s `_register_stands()`
 
 ## License
 

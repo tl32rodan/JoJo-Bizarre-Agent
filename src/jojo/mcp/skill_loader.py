@@ -11,8 +11,6 @@ import yaml
 
 @dataclass(frozen=True)
 class SkillInfo:
-    """Parsed SKILL.md content."""
-
     name: str = ""
     description: str = ""
     body: str = ""
@@ -20,17 +18,10 @@ class SkillInfo:
 
 
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
-_TOOL_SECTION_RE = re.compile(
-    r"^###\s+`?(\w+)(?:\(.*?\))?`?\s*[-–—]?\s*(.*)",
-    re.MULTILINE,
-)
+_TOOL_SECTION_RE = re.compile(r"^###\s+`?(\w+)(?:\(.*?\))?`?\s*[-\u2013\u2014]?\s*(.*)", re.MULTILINE)
 
 
 def parse_skill_md(text: str) -> SkillInfo:
-    """Parse a SKILL.md string into :class:`SkillInfo`.
-
-    Supports optional YAML frontmatter (``---`` delimited).
-    """
     name = ""
     description = ""
     body = text
@@ -49,37 +40,22 @@ def parse_skill_md(text: str) -> SkillInfo:
 
     tool_hints: dict[str, str] = {}
     for m in _TOOL_SECTION_RE.finditer(body):
-        tool_name = m.group(1)
         hint = m.group(2).strip()
         if hint:
-            tool_hints[tool_name] = hint
+            tool_hints[m.group(1)] = hint
 
-    return SkillInfo(
-        name=name,
-        description=description,
-        body=body.strip(),
-        tool_hints=tool_hints,
-    )
-
-
-def load_skill_file(path: str | Path) -> SkillInfo:
-    """Read a SKILL.md file from disk and parse it."""
-    p = Path(path)
-    if not p.is_file():
-        return SkillInfo()
-    text = p.read_text(encoding="utf-8")
-    return parse_skill_md(text)
+    return SkillInfo(name=name, description=description, body=body.strip(), tool_hints=tool_hints)
 
 
 def load_skills_from_paths(paths: list[str | Path]) -> list[SkillInfo]:
-    """Load SKILL.md files from a list of directories or file paths."""
     results: list[SkillInfo] = []
     for p in paths:
         p = Path(p)
         if p.is_file() and p.name.upper() == "SKILL.MD":
-            results.append(load_skill_file(p))
+            text = p.read_text(encoding="utf-8")
+            results.append(parse_skill_md(text))
         elif p.is_dir():
             candidate = p / "SKILL.md"
             if candidate.is_file():
-                results.append(load_skill_file(candidate))
+                results.append(parse_skill_md(candidate.read_text(encoding="utf-8")))
     return results

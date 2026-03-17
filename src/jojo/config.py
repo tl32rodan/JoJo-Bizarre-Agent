@@ -12,18 +12,14 @@ import yaml
 
 
 def _substitute_env_vars(value: str) -> str:
-    """Replace ``${VAR:-default}`` and ``${VAR}`` patterns with env values."""
-
     def _replace(match: re.Match[str]) -> str:
         var_name = match.group(1)
-        default = match.group(3)  # may be None
+        default = match.group(3)
         return os.environ.get(var_name, default if default is not None else "")
-
     return re.sub(r"\$\{(\w+)(:-(.*?))?\}", _replace, value)
 
 
 def _resolve_strings(data: Any) -> Any:
-    """Recursively resolve env-var placeholders in strings."""
     if isinstance(data, str):
         return _substitute_env_vars(data)
     if isinstance(data, dict):
@@ -37,7 +33,6 @@ def _resolve_strings(data: Any) -> Any:
 # Dataclasses
 # ---------------------------------------------------------------------------
 
-
 @dataclass(frozen=True)
 class LLMConfig:
     base_url: str = "http://f15dtpai1:11517/v1"
@@ -50,9 +45,14 @@ class LLMConfig:
 
 
 @dataclass(frozen=True)
+class EmbeddingConfig:
+    api_base: str = "http://f15dtpai1:11434"
+    model: str = "nomic-embed-text"
+
+
+@dataclass(frozen=True)
 class SmakLibConfig:
     workspace_config: str = "./workspace_config.yaml"
-    embedding_config: str | None = None
 
 
 @dataclass(frozen=True)
@@ -92,7 +92,7 @@ class HeartbeatConfig:
 @dataclass(frozen=True)
 class EmailConfig:
     enabled: bool = False
-    ddi_api_path: str = "/CAD/stdcell/DesignKits/SCLD_OBF_2013.06/STD_CORE_CHAR/Script/ddi_api.pl"
+    ddi_api_path: str = ""
     sender: str = ""
     recipients: list[str] = field(default_factory=list)
     notify_on: list[str] = field(default_factory=lambda: [
@@ -118,6 +118,7 @@ class SessionConfig:
 @dataclass(frozen=True)
 class AgentConfig:
     llm: LLMConfig = field(default_factory=LLMConfig)
+    embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     smak: SmakLibConfig = field(default_factory=SmakLibConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     mcp_servers: dict[str, MCPServerConfig] = field(default_factory=dict)
@@ -133,7 +134,6 @@ class AgentConfig:
 # ---------------------------------------------------------------------------
 
 def _build_dataclass(cls: type, data: Mapping[str, Any]) -> Any:
-    """Build a frozen dataclass from a mapping, ignoring unknown keys."""
     known = {f for f in cls.__dataclass_fields__}
     kwargs = {k: v for k, v in data.items() if k in known}
     return cls(**kwargs)
@@ -148,10 +148,6 @@ def _parse_mcp_servers(raw: Mapping[str, Any]) -> dict[str, MCPServerConfig]:
 
 
 def load_agent_config(path: str | Path = "agent.yaml") -> AgentConfig:
-    """Load :class:`AgentConfig` from a YAML file.
-
-    Returns defaults when the file does not exist.
-    """
     config_path = Path(path)
     if not config_path.exists():
         return AgentConfig()
@@ -163,24 +159,15 @@ def load_agent_config(path: str | Path = "agent.yaml") -> AgentConfig:
 
     data = _resolve_strings(data)
 
-    llm = _build_dataclass(LLMConfig, data.get("llm", {})) if "llm" in data else LLMConfig()
-    smak = _build_dataclass(SmakLibConfig, data.get("smak", {})) if "smak" in data else SmakLibConfig()
-    memory = _build_dataclass(MemoryConfig, data.get("memory", {})) if "memory" in data else MemoryConfig()
-    mcp_servers = _parse_mcp_servers(data.get("mcp_servers", {}))
-    permissions = _build_dataclass(PermissionConfig, data.get("permissions", {})) if "permissions" in data else PermissionConfig()
-    heartbeat = _build_dataclass(HeartbeatConfig, data.get("heartbeat", {})) if "heartbeat" in data else HeartbeatConfig()
-    email = _build_dataclass(EmailConfig, data.get("email", {})) if "email" in data else EmailConfig()
-    subagent = _build_dataclass(SubAgentConfig, data.get("subagent", {})) if "subagent" in data else SubAgentConfig()
-    session = _build_dataclass(SessionConfig, data.get("session", {})) if "session" in data else SessionConfig()
-
     return AgentConfig(
-        llm=llm,
-        smak=smak,
-        memory=memory,
-        mcp_servers=mcp_servers,
-        permissions=permissions,
-        heartbeat=heartbeat,
-        email=email,
-        subagent=subagent,
-        session=session,
+        llm=_build_dataclass(LLMConfig, data["llm"]) if "llm" in data else LLMConfig(),
+        embedding=_build_dataclass(EmbeddingConfig, data["embedding"]) if "embedding" in data else EmbeddingConfig(),
+        smak=_build_dataclass(SmakLibConfig, data["smak"]) if "smak" in data else SmakLibConfig(),
+        memory=_build_dataclass(MemoryConfig, data["memory"]) if "memory" in data else MemoryConfig(),
+        mcp_servers=_parse_mcp_servers(data.get("mcp_servers", {})),
+        permissions=_build_dataclass(PermissionConfig, data["permissions"]) if "permissions" in data else PermissionConfig(),
+        heartbeat=_build_dataclass(HeartbeatConfig, data["heartbeat"]) if "heartbeat" in data else HeartbeatConfig(),
+        email=_build_dataclass(EmailConfig, data["email"]) if "email" in data else EmailConfig(),
+        subagent=_build_dataclass(SubAgentConfig, data["subagent"]) if "subagent" in data else SubAgentConfig(),
+        session=_build_dataclass(SessionConfig, data["session"]) if "session" in data else SessionConfig(),
     )

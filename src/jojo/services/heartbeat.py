@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Coroutine
 
-from react_agent.config import HeartbeatConfig
+from jojo.config import HeartbeatConfig
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,6 @@ HealthCheck = Callable[[], Coroutine[Any, Any, bool]]
 
 
 class HeartbeatService:
-    """Run periodic health checks in the background."""
-
     def __init__(
         self,
         config: HeartbeatConfig,
@@ -41,28 +39,18 @@ class HeartbeatService:
         self._checks = checks or {}
         self._on_failure = on_failure
         self._task: asyncio.Task[None] | None = None
-        self._last_status: HealthStatus | None = None
-
-    @property
-    def last_status(self) -> HealthStatus | None:
-        return self._last_status
 
     def start(self) -> None:
-        """Start the background heartbeat loop."""
-        if not self._config.enabled:
-            return
-        if self._task is not None:
+        if not self._config.enabled or self._task is not None:
             return
         self._task = asyncio.ensure_future(self._loop())
 
     def stop(self) -> None:
-        """Cancel the background heartbeat loop."""
         if self._task is not None:
             self._task.cancel()
             self._task = None
 
     async def run_checks(self) -> HealthStatus:
-        """Execute all registered health checks once."""
         results: dict[str, bool] = {}
         for name, check_fn in self._checks.items():
             try:
@@ -70,9 +58,7 @@ class HeartbeatService:
             except Exception:
                 logger.exception("Health check '%s' raised", name)
                 results[name] = False
-        status = HealthStatus(checks=results)
-        self._last_status = status
-        return status
+        return HealthStatus(checks=results)
 
     async def _loop(self) -> None:
         try:
@@ -80,7 +66,7 @@ class HeartbeatService:
                 status = await self.run_checks()
                 if not status.healthy:
                     logger.warning("Heartbeat failures: %s", status.failures)
-                    if self._on_failure is not None:
+                    if self._on_failure:
                         try:
                             self._on_failure(status)
                         except Exception:

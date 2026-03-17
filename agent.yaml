@@ -1,8 +1,14 @@
-# ┌──────────────────────────────────────────────────────────┐
-# │  STAR PLATINUM（白金之星）— Local ReAct Agent Config     │
-# │  Stand Arrow: THE WORLD / HIEROPHANT GREEN /            │
-# │               HARVEST / SHEER HEART ATTACK              │
-# └──────────────────────────────────────────────────────────┘
+# ┌──────────────────────────────────────────────────────┐
+# │  JoJo（ジョジョ）— Stand Master                      │
+# │                                                      │
+# │  Stands:                                             │
+# │    STAR PLATINUM      — Precision + Time Stop        │
+# │    GOLD EXPERIENCE    — Life Giver (sub-agent spawn) │
+# │    THE WORLD          — Time Stop (deep reasoning)   │
+# │    HIEROPHANT GREEN   — Emerald Splash (RAG)         │
+# │    HARVEST            — Colony (parallel)            │
+# │    SHEER HEART ATTACK — Automatic (background)       │
+# └──────────────────────────────────────────────────────┘
 
 llm:
   base_url: ${LLM_BASE_URL:-http://f15dtpai1:11517/v1}
@@ -10,19 +16,21 @@ llm:
   api_key: ${LLM_API_KEY:-EMPTY}
   models:
     default: gpt-oss-120b
-    reasoning: qwen3_235B_A22B           # Used by THE WORLD for deep reasoning
+    reasoning: qwen3_235B_A22B           # Used by THE WORLD + Star Platinum Time Stop
+
+embedding:
+  api_base: ${EMBEDDING_API_BASE:-http://f15dtpai1:11434}
+  model: ${EMBEDDING_MODEL:-nomic-embed-text}
+
+smak:
+  workspace_config: ./workspace_config.yaml
 
 memory:
   storage_dir: ./agent_data/memory
   max_entries: 10000
   auto_memorize: true
 
-smak:
-  workspace_config: ./workspace_config.yaml
-
 mcp_servers:
-  # External tools accessed via MCP stdio transport.
-  # SMAK is imported directly as a Python library, NOT via MCP.
   filesystem:
     command: python
     args: ["-m", "filesystem_server.server"]
@@ -30,7 +38,7 @@ mcp_servers:
       ROOT_DIR: ${WORKSPACE_ROOT:-.}
 
 permissions:
-  mode: ask                       # ask | allow_all | deny_all
+  mode: ask
   allowed_tools: ["*"]
   denied_tools: []
   require_confirmation:
@@ -44,17 +52,10 @@ heartbeat:
 
 email:
   enabled: false
-  ddi_api_path: /CAD/stdcell/DesignKits/SCLD_OBF_2013.06/STD_CORE_CHAR/Script/ddi_api.pl
-  sender: ""
-  recipients: []
-  notify_on:
-    - error
-    - heartbeat_failure
-    - task_complete
 
 subagent:
   enabled: true
-  mode: tmux                      # tmux | cron
+  mode: tmux
   max_concurrent: 3
   timeout_seconds: 600
   work_dir: ./agent_data/subagent_tasks/
