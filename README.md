@@ -1,86 +1,106 @@
-# Local ReAct Agent
+# stand-master
 
-A local, offline-capable ReAct agent built on top of **SMAK** (as a Python library) with MCP client support for external tools.
+**STAR PLATINUM（白金之星）** — A multi-agent orchestrator built on the JoJo Stand architecture.
+
+STAR PLATINUM is the primary agent. It processes tasks directly or summons specialised sub-agents (**Stands**) via the **Stand Arrow** for tasks that require specific capabilities.
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────┐
-│              local-react-agent                        │
-│                                                       │
-│  ┌────────────┐  ┌─────────────┐  ┌───────────────┐  │
-│  │ AgentLoop  │  │ MCPClient   │  │ MemoryStore   │  │
-│  │ (ReAct +   │  │ (filesystem │  │ (SMAK index + │  │
-│  │  bind_tools)│  │  + others)  │  │  QueryService)│  │
-│  └─────┬──────┘  └──────┬──────┘  └───────┬───────┘  │
-│        │                │                 │           │
-│  ┌─────┴──────┐  ┌──────┴──────┐  ┌──────┴────────┐  │
-│  │ ChatOpenAI │  │ Permission  │  │ SMAK library  │  │
-│  │ (OpenAI v1)│  │ Manager     │  │ (direct       │  │
-│  └────────────┘  └─────────────┘  │  Python import)│  │
-│                                   └───────────────┘  │
-│  ┌────────────┐  ┌─────────────┐  ┌───────────────┐  │
-│  │ SkillLoader│  │ Heartbeat   │  │ SubAgent      │  │
-│  │ (SKILL.md) │  │ Service     │  │ Spawner       │  │
-│  └────────────┘  └─────────────┘  └───────────────┘  │
-│  ┌─────────────────────────────┐                      │
-│  │ EmailNotifier (ddi_api.pl)  │                      │
-│  └─────────────────────────────┘                      │
-└──────────────────────────────────────────────────────┘
-         │                    │
-    ┌────┴─────┐        ┌────┴──────┐
-    │Filesystem│        │ Other MCP │
-    │MCP Server│        │ Servers   │
-    └──────────┘        └───────────┘
+                    ┌─────────────────────────┐
+                    │     STAR PLATINUM        │
+                    │     （白金之星）           │
+                    │   Main Orchestrator      │
+                    │   core/agent_loop.py     │
+                    └──────────┬──────────────┘
+                               │
+                    ┌──────────▼──────────────┐
+                    │      Stand Arrow         │
+                    │    （スタンドの矢）        │
+                    │    stands/arrow.py       │
+                    └──┬───┬────┬───┬──────────┘
+         ┌─────────────┘   │    │   └──────────────┐
+         ▼                 ▼    ▼                  ▼
+  ┌─────────────┐  ┌──────────┐  ┌───────────┐  ┌───────────────┐
+  │  THE WORLD  │  │HIEROPHANT│  │  HARVEST  │  │ SHEER HEART   │
+  │ ザ・ワールド  │  │  GREEN   │  │ ハーヴェスト│  │    ATTACK     │
+  │             │  │  法皇の緑  │  │           │  │シアーハートアタック│
+  │ Close-Range │  │Long-Range│  │  Colony   │  │  Automatic    │
+  │  in-process │  │ subagent │  │ in-process│  │  subagent     │
+  └─────────────┘  └──────────┘  └───────────┘  └───────────────┘
+         ▼
+  ┌─────────────┐
+  │    CRAZY    │
+  │   DIAMOND   │
+  │クレイジー・   │
+  │ダイヤモンド  │
+  │ Restoration │
+  │ in-process  │
+  └─────────────┘
 ```
 
-**SMAK** is imported directly as a Python library (no MCP roundtrip for RAG).
-Only external tools (filesystem\_server, etc.) use the MCP stdio client.
+### The Five Stands
+
+| Stand | Ability | Spawn Mode | Pipeline |
+|---|---|---|---|
+| **THE WORLD** | Close-Range Power | in-process | Inner ReAct loop with dedicated reasoning model and higher step budget |
+| **HIEROPHANT GREEN** | Long-Range | **subagent** | embed → vector search → SMAK relation expansion → consolidate |
+| **HARVEST** | Colony | in-process | Split sub-tasks → `asyncio.gather` parallel execution → collect |
+| **SHEER HEART ATTACK** | Automatic | **subagent** | Spawn subprocess via tmux/cron → (optional) poll → collect |
+| **CRAZY DIAMOND** | Restoration | in-process | Detect error → diagnose root cause → attempt fix → verify |
+
+HIEROPHANT GREEN and SHEER HEART ATTACK are spawned as independent subprocess via `SubAgentSpawner` (tmux or cron). They run their own pipeline inside `stands/runner.py`.
 
 ## Project Structure
 
 ```
-├── agent.yaml                        # Main configuration
-├── pyproject.toml                    # Dependencies & build
-├── src/react_agent/
-│   ├── config.py                     # YAML config with ${VAR:-default} env substitution
-│   ├── main.py                       # CLI entry point
-│   ├── core/
-│   │   ├── agent_loop.py             # ReAct loop (ChatOpenAI + bind_tools)
-│   │   ├── context_manager.py        # Token window / sliding history
-│   │   └── prompt_engine.py          # System prompt assembly
-│   ├── mcp/
-│   │   ├── client.py                 # MCP stdio client for external tools
-│   │   ├── tool_registry.py          # Unified registry (SMAK + MCP + local)
-│   │   └── skill_loader.py           # SKILL.md parser
-│   ├── memory/
-│   │   ├── store.py                  # SMAK-backed memory (1-hop relation expansion)
-│   │   ├── summarizer.py             # LLM-based conversation compression
-│   │   └── fallback.py               # In-memory stubs when SMAK is absent
-│   └── services/
-│       ├── permission.py             # Glob-based allow/deny/confirm rules
-│       ├── heartbeat.py              # Async periodic health checks
-│       ├── email_notifier.py         # Notifications via ddi_api.pl
-│       └── subagent.py               # tmux/cron spawner (1-level depth limit)
-└── tests/                            # 85 unit tests
+stand-master/
+├── agent.yaml                          # Main configuration
+├── pyproject.toml
+└── src/stand_master/
+    ├── main.py                         # Thin entry point (bootstrap + repl)
+    ├── bootstrap.py                    # DI container — wires all dependencies
+    ├── repl.py                         # Interactive REPL — handles user I/O only
+    ├── config.py                       # YAML config with ${VAR:-default} substitution
+    ├── core/
+    │   ├── agent_loop.py               # STAR PLATINUM ReAct loop
+    │   ├── context_manager.py          # Token window / sliding history
+    │   └── prompt_engine.py            # System prompt assembly
+    ├── stands/
+    │   ├── base.py                     # Stand ABC, StandType, StandStatus, SpawnMode
+    │   ├── arrow.py                    # StandArrow factory
+    │   ├── the_world.py                # Close-Range Power (in-process)
+    │   ├── hierophant_green.py         # Long-Range RAG (subagent)
+    │   ├── harvest.py                  # Colony parallel (in-process)
+    │   ├── sheer_heart_attack.py       # Automatic background (subagent)
+    │   ├── crazy_diamond.py            # Restoration / error recovery (in-process)
+    │   └── runner.py                   # Subprocess entry for subagent Stands
+    ├── mcp/
+    │   ├── client.py                   # MCP stdio client
+    │   ├── tool_registry.py            # Unified tool registry (MCP + local)
+    │   └── skill_loader.py             # SKILL.md parser
+    ├── memory/
+    │   ├── store.py                    # SMAK-backed vector memory
+    │   └── summarizer.py              # LLM-based conversation compression
+    └── services/
+        ├── permission.py               # Glob-based allow/deny/confirm rules
+        ├── heartbeat.py                # Async periodic health checks
+        ├── email_notifier.py           # Notifications via ddi_api.pl
+        └── subagent.py                 # tmux/cron spawner (1-level depth limit)
 ```
 
 ## Prerequisites
 
 - Python 3.10+
 - A local OpenAI-compatible LLM endpoint (e.g. vLLM serving `gpt-oss-120b`)
-
-Optional (for full RAG memory):
 - [SMAK](https://github.com/tl32rodan/SMAK) — semantic search + 1-hop relation expansion
 - [faiss-storage-lib](https://github.com/tl32rodan/faiss-storage-lib) — FAISS + SQLite vector store
+- A local Nomic-compatible embedding endpoint (e.g. Ollama serving `nomic-embed-text`)
 
 ## Installation
 
 ```bash
 pip install -e .
-
-# With SMAK support (recommended for production)
-pip install -e ".[smak]"
 
 # Development
 pip install -e ".[dev]"
@@ -88,78 +108,89 @@ pip install -e ".[dev]"
 
 ## Configuration
 
-Copy and edit `agent.yaml`:
+Edit `agent.yaml`. All values support `${VAR:-default}` env substitution.
 
 ```yaml
 llm:
-  base_url: ${LLM_BASE_URL:-http://f15dtpai1:11517/v1}
+  base_url: ${LLM_BASE_URL:-http://localhost:11517/v1}
   model: ${LLM_MODEL:-gpt-oss-120b}
   api_key: ${LLM_API_KEY:-EMPTY}
+  models:
+    reasoning: qwen3_235B_A22B    # Used by THE WORLD for deep reasoning
+
+embedding:
+  api_base: ${EMBEDDING_API_BASE:-http://localhost:11434}
+  model: ${EMBEDDING_MODEL:-nomic-embed-text}
+
+smak:
+  workspace_config: ./workspace_config.yaml
 
 memory:
   storage_dir: ./agent_data/memory
   auto_memorize: true
 
-mcp_servers:
-  filesystem:
-    command: python
-    args: ["-m", "filesystem_server.server"]
-    env:
-      ROOT_DIR: ${WORKSPACE_ROOT:-.}
-
-permissions:
-  mode: ask        # ask | allow_all | deny_all
-  require_confirmation:
-    - delete_file
-    - write_file
-    - run_terminal_command
+subagent:
+  enabled: true
+  mode: tmux          # tmux | cron
+  max_concurrent: 3
+  timeout_seconds: 600
+  work_dir: ./agent_data/subagent_tasks/
 ```
 
-Environment variables use `${VAR:-default}` syntax and are resolved at load time.
+The embedding dimension is determined at runtime by probing the embedding endpoint — it is never hard-coded.
 
 ## Usage
 
 ```bash
 # Run with default agent.yaml
-react-agent
+stand-master
 
-# Or specify a config file
-react-agent /path/to/my-config.yaml
+# Specify a config file
+stand-master /path/to/my-config.yaml
 
-# Or run directly
-python -m react_agent.main agent.yaml
+# Or run as a module
+python -m stand_master.main agent.yaml
 ```
 
 Interactive session:
 
 ```
-Local ReAct Agent ready. Type 'exit' or 'quit' to leave.
-> What files are in the current directory?
+STAR PLATINUM> What does the auth module do?
 
-The current directory contains: README.md, src/, tests/, agent.yaml ...
+[HIEROPHANT GREEN] Task completed.
+Output: [SMAK #1] (source_code) auth.py — handles JWT validation ...
 
-  [Used 1 tool(s) in 2 step(s)]
-> exit
-Goodbye!
+The auth module validates JWT tokens on every request. It uses ...
+
+  [1 tool(s) | Stands: hierophant_green | 3 step(s)]
+
+STAR PLATINUM> exit
+やれやれだぜ… Goodbye!
 ```
 
-## Testing
+## Summoning Stands
 
-```bash
-pytest tests/ -v
-```
+STAR PLATINUM can be instructed to use a specific Stand via the `summon_stand` tool:
 
-All tests run without network access or external services.
+| Command | Stand | When to use |
+|---|---|---|
+| `summon_stand("the_world")` | THE WORLD | Complex multi-step reasoning, hard analytical problems |
+| `summon_stand("hierophant_green")` | HIEROPHANT GREEN | Semantic search, RAG retrieval, codebase exploration |
+| `summon_stand("harvest")` | HARVEST | Batch operations, parallel sub-tasks |
+| `summon_stand("sheer_heart_attack")` | SHEER HEART ATTACK | Long-running background jobs, fire-and-forget |
+| `summon_stand("crazy_diamond")` | CRAZY DIAMOND | Error recovery, diagnosing failed pipelines, self-healing |
 
-## Key Design Decisions
+## Design Principles
 
-| Decision | Rationale |
-|----------|-----------|
-| SMAK as library, not MCP | No IPC overhead for RAG; direct access to 1-hop relation expansion |
-| `ChatOpenAI.bind_tools()` | Structured tool calling — no fragile text parsing |
-| Protocol-based interfaces | `MemoryStore` accepts any embedding/vector store via duck typing |
-| 1-level subagent limit | `AGENT_DEPTH` env var prevents recursive spawning |
-| Fallback stubs | Agent starts without SMAK/FAISS using in-memory replacements |
+| Principle | Implementation |
+|---|---|
+| **Single Responsibility** | `bootstrap.py` wires deps, `repl.py` handles I/O, `agent_loop.py` runs logic |
+| **Open/Closed** | New Stands added without modifying existing ones — extend `StandType` and `StandArrow` |
+| **Liskov Substitution** | `Stand` ABC guarantees all Stands share the same `execute()` interface |
+| **Interface Segregation** | `EmbeddingModel`, `VectorStore`, `QueryServiceLike` protocols expose minimal surfaces |
+| **Dependency Inversion** | `AgentLoop` depends on abstractions; concrete deps injected by `bootstrap.py` |
+| **Subagent depth limit** | `AGENT_DEPTH` env var prevents recursive spawning |
+| **Dynamic embedding dim** | `FaissEngine` dimension set from `embedder.get_embedding_dimension()` at startup |
 
 ## License
 
