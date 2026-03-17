@@ -1,6 +1,6 @@
 """HIEROPHANT GREEN（法皇の緑）— Long-Range Stand.
 
-Search & retrieval pipeline (spawned as subagent via Stand Arrow).
+Search & retrieval pipeline (spawned as subagent via GOLD EXPERIENCE).
 Pipeline: embed query → vector search → SMAK relation expansion → consolidate.
 
 When run as a subagent process (via stands/runner.py), this Stand

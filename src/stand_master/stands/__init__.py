@@ -1,7 +1,8 @@
 """Stand system — JoJo-inspired multi-agent architecture.
 
 STAR PLATINUM (白金之星) is the main orchestrator agent.
-It uses the Stand Arrow (スタンドの矢) to spawn specialised sub-agents (Stands):
+It uses GOLD EXPERIENCE (ゴールド・エクスペリエンス) to give life to
+specialised sub-agents (Stands):
 
   - THE WORLD          (ザ・ワールド)           Close-Range Power — deep reasoning (in-process)
   - HIEROPHANT GREEN   (法皇の緑)               Long-Range — RAG retrieval (subagent)
@@ -11,6 +12,6 @@ It uses the Stand Arrow (スタンドの矢) to spawn specialised sub-agents (St
 """
 
 from stand_master.stands.base import Stand, StandType, StandResult, StandStatus, SpawnMode
-from stand_master.stands.arrow import StandArrow
+from stand_master.stands.gold_experience import GoldExperience
 
-__all__ = ["Stand", "StandType", "StandResult", "StandStatus", "SpawnMode", "StandArrow"]
+__all__ = ["Stand", "StandType", "StandResult", "StandStatus", "SpawnMode", "GoldExperience"]

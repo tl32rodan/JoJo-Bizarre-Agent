@@ -2,7 +2,7 @@
 
 STAR PLATINUM is the primary orchestrator.  It processes user input,
 decides whether to handle tasks directly or summon specialised Stands
-via the Stand Arrow, and synthesises all results into a final answer.
+via GOLD EXPERIENCE, and synthesises all results into a final answer.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from stand_master.memory.store import MemoryStore
 from stand_master.mcp.tool_registry import ToolRegistry
 from stand_master.services.permission import PermissionManager, PermissionVerdict
 from stand_master.stands.base import StandStatus, STAND_PROFILES
-from stand_master.stands.arrow import StandArrow
+from stand_master.stands.gold_experience import GoldExperience
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class AgentLoop:
         memory: MemoryStore,
         permissions: PermissionManager,
         config: AgentConfig,
-        stand_arrow: StandArrow,
+        gold_experience: GoldExperience,
     ) -> None:
         self._llm = llm
         self._tools = tool_registry
@@ -64,11 +64,11 @@ class AgentLoop:
         self._permissions = permissions
         self._config = config
         self._context = ContextManager(max_tokens=config.session.max_history_tokens)
-        self._arrow = stand_arrow
+        self._arrow = gold_experience
 
     async def run(self, user_input: str, *, max_steps: int = 15) -> AgentResult:
         memories = self._memory.recall(user_input, top_k=5)
-        stand_descriptions = StandArrow.describe_stands()
+        stand_descriptions = GoldExperience.describe_stands()
 
         system_prompt = build_system_prompt(
             tool_descriptions=self._tools.get_tool_descriptions(),
@@ -143,14 +143,14 @@ class AgentLoop:
         context = args.get("context", {})
 
         if not stand_type_str:
-            return "[Stand Arrow] Error: stand_type is required."
+            return "[GOLD EXPERIENCE] Error: stand_type is required."
         if not task:
-            return "[Stand Arrow] Error: task description is required."
+            return "[GOLD EXPERIENCE] Error: task description is required."
 
         try:
             stand = self._arrow.summon_by_name(stand_type_str)
         except ValueError as e:
-            return f"[Stand Arrow] Error: {e}"
+            return f"[GOLD EXPERIENCE] Error: {e}"
 
         profile = STAND_PROFILES[stand.stand_type]
         logger.info("STAR PLATINUM summons %s for task: %s", profile["name"], task[:80])

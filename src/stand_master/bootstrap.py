@@ -20,7 +20,7 @@ from stand_master.mcp.tool_registry import ToolRegistry
 from stand_master.services.email_notifier import EmailNotifier
 from stand_master.services.heartbeat import HeartbeatService
 from stand_master.services.permission import PermissionManager
-from stand_master.stands.arrow import StandArrow
+from stand_master.stands.gold_experience import GoldExperience
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class AppContext:
     memory: MemoryStore
     mcp_client: MCPClientManager
     heartbeat: HeartbeatService
-    stand_arrow: StandArrow
+    gold_experience: GoldExperience
 
 
 async def build_app(config_path: str = "agent.yaml") -> AppContext:
@@ -50,7 +50,7 @@ async def build_app(config_path: str = "agent.yaml") -> AppContext:
     subagent_spawner = _build_subagent_spawner(config)
     email = EmailNotifier(config.email)
 
-    stand_arrow = StandArrow(
+    gold_experience = GoldExperience(
         llm=llm,
         reasoning_llm=reasoning_llm,
         tool_registry=tool_registry,
@@ -70,7 +70,7 @@ async def build_app(config_path: str = "agent.yaml") -> AppContext:
         memory=memory,
         permissions=permissions,
         config=config,
-        stand_arrow=stand_arrow,
+        gold_experience=gold_experience,
     )
 
     return AppContext(
@@ -79,7 +79,7 @@ async def build_app(config_path: str = "agent.yaml") -> AppContext:
         memory=memory,
         mcp_client=mcp_client,
         heartbeat=heartbeat,
-        stand_arrow=stand_arrow,
+        gold_experience=gold_experience,
     )
 
 
@@ -88,7 +88,7 @@ async def teardown_app(ctx: AppContext) -> None:
     ctx.heartbeat.stop()
     await ctx.mcp_client.disconnect_all()
     ctx.memory.persist()
-    ctx.stand_arrow.retire_all()
+    ctx.gold_experience.retire_all()
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +201,7 @@ def _make_harvest_worker(llm: Any, tool_registry: ToolRegistry, memory: MemorySt
         mini._permissions = PermissionManager(AgentConfig().permissions)
         mini._config = AgentConfig()
         mini._context = __import__("stand_master.core.context_manager", fromlist=["ContextManager"]).ContextManager()
-        mini._arrow = StandArrow(llm=llm)
+        mini._arrow = GoldExperience(llm=llm)
         result = await mini.run(task, max_steps=5)
         return result.answer
     return worker

@@ -1,6 +1,9 @@
-"""Stand Arrow（スタンドの矢）— Stand factory.
+"""GOLD EXPERIENCE（ゴールド・エクスペリエンス）— Stand spawner.
 
-The Stand Arrow is the mechanism STAR PLATINUM uses to summon Stands.
+Giorno Giovanna's Stand ability: bestowing life.
+GOLD EXPERIENCE gives life to new Stands — it is the mechanism
+STAR PLATINUM uses to summon specialised sub-agents.
+
 For in-process Stands (THE WORLD, HARVEST, CRAZY DIAMOND), it creates
 instances directly.  For subagent Stands (HIEROPHANT GREEN, SHEER HEART
 ATTACK), it delegates to the SubAgentSpawner.
@@ -16,8 +19,8 @@ from stand_master.stands.base import Stand, StandType, SpawnMode, STAND_PROFILES
 logger = logging.getLogger(__name__)
 
 
-class StandArrow:
-    """Factory that pierces a task and awakens the correct Stand."""
+class GoldExperience:
+    """「無駄無駄無駄！」— Bestows life upon new Stands."""
 
     def __init__(
         self,
@@ -42,7 +45,7 @@ class StandArrow:
         self._active_stands: list[Stand] = []
 
     def summon(self, stand_type: StandType) -> Stand:
-        logger.info("Stand Arrow pierces — summoning %s", STAND_PROFILES[stand_type]["name"])
+        logger.info("GOLD EXPERIENCE gives life — summoning %s", STAND_PROFILES[stand_type]["name"])
 
         if stand_type == StandType.THE_WORLD:
             from stand_master.stands.the_world import TheWorld
@@ -114,7 +117,7 @@ class StandArrow:
 
     @staticmethod
     def describe_stands() -> str:
-        lines = ["## Stand Arrow — Available Stands\n"]
+        lines = ["## GOLD EXPERIENCE — Available Stands\n"]
         for st in StandType:
             p = STAND_PROFILES[st]
             mode = p.get("spawn_mode", "in_process")

@@ -1,1 +1,1 @@
-"""STAR PLATINUM — Multi-agent orchestrator with Stand Arrow architecture."""
+"""STAR PLATINUM — Multi-agent orchestrator with GOLD EXPERIENCE Stand spawner."""

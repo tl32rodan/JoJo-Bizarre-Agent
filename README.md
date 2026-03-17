@@ -2,7 +2,7 @@
 
 **STAR PLATINUM（白金之星）** — A multi-agent orchestrator built on the JoJo Stand architecture.
 
-STAR PLATINUM is the primary agent. It processes tasks directly or summons specialised sub-agents (**Stands**) via the **Stand Arrow** for tasks that require specific capabilities.
+STAR PLATINUM is the primary agent. It processes tasks directly or summons specialised sub-agents (**Stands**) via the **GOLD EXPERIENCE** for tasks that require specific capabilities.
 
 ## Architecture
 
@@ -15,9 +15,9 @@ STAR PLATINUM is the primary agent. It processes tasks directly or summons speci
                     └──────────┬──────────────┘
                                │
                     ┌──────────▼──────────────┐
-                    │      Stand Arrow         │
+                    │      GOLD EXPERIENCE         │
                     │    （スタンドの矢）        │
-                    │    stands/arrow.py       │
+                    │    stands/gold_experience.py       │
                     └──┬───┬────┬───┬──────────┘
          ┌─────────────┘   │    │   └──────────────┐
          ▼                 ▼    ▼                  ▼
@@ -68,7 +68,7 @@ stand-master/
     │   └── prompt_engine.py            # System prompt assembly
     ├── stands/
     │   ├── base.py                     # Stand ABC, StandType, StandStatus, SpawnMode
-    │   ├── arrow.py                    # StandArrow factory
+    │   ├── arrow.py                    # GoldExperience factory
     │   ├── the_world.py                # Close-Range Power (in-process)
     │   ├── hierophant_green.py         # Long-Range RAG (subagent)
     │   ├── harvest.py                  # Colony parallel (in-process)
@@ -185,7 +185,7 @@ STAR PLATINUM can be instructed to use a specific Stand via the `summon_stand` t
 | Principle | Implementation |
 |---|---|
 | **Single Responsibility** | `bootstrap.py` wires deps, `repl.py` handles I/O, `agent_loop.py` runs logic |
-| **Open/Closed** | New Stands added without modifying existing ones — extend `StandType` and `StandArrow` |
+| **Open/Closed** | New Stands added without modifying existing ones — extend `StandType` and `GoldExperience` |
 | **Liskov Substitution** | `Stand` ABC guarantees all Stands share the same `execute()` interface |
 | **Interface Segregation** | `EmbeddingModel`, `VectorStore`, `QueryServiceLike` protocols expose minimal surfaces |
 | **Dependency Inversion** | `AgentLoop` depends on abstractions; concrete deps injected by `bootstrap.py` |

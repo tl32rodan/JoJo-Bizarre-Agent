@@ -1,7 +1,7 @@
 """Stand subprocess runner — entry point for subagent-spawned Stands.
 
 When STAR PLATINUM summons HIEROPHANT GREEN or SHEER HEART ATTACK via
-the Stand Arrow, the SubAgentSpawner launches this module as a separate
+GOLD EXPERIENCE, the SubAgentSpawner launches this module as a separate
 process. It reads input.json, runs the Stand's pipeline, and writes
 output.json or error.txt.
 

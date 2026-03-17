@@ -1,6 +1,6 @@
 """SHEER HEART ATTACK（シアーハートアタック）— Automatic Stand.
 
-Background task pipeline (spawned as subagent via Stand Arrow).
+Background task pipeline (spawned as subagent via GOLD EXPERIENCE).
 Launches a task via SubAgentSpawner (tmux/cron) and optionally polls.
 
 When the task is "fire_and_forget" (default), STAR PLATINUM gets an

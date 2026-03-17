@@ -15,7 +15,7 @@ _BANNER = r"""
   ___) | | |/ ___ \|  _ <  |  __/| |___ / ___ \| |  | || |\  | |_| | |  | |
  |____/  |_/_/   \_\_| \_\ |_|   |_____/_/   \_\_| |___|_| \_|\___/|_|  |_|
 
-    「オラオラオラ！」 — Stand Arrow Ready.
+    「オラオラオラ！」 — GOLD EXPERIENCE Ready.
     Stands: THE WORLD | HIEROPHANT GREEN | HARVEST | SHEER HEART ATTACK | CRAZY DIAMOND
 """
 
