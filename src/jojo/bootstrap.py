@@ -13,9 +13,10 @@ from typing import Any
 
 from jojo.config import AgentConfig, load_agent_config
 from jojo.core.jojo import JoJo
+from jojo.core.message_bus import MessageBus
 from jojo.memory.store import MemoryStore
 from jojo.mcp.client import MCPClientManager
-from jojo.mcp.skill_loader import load_skills_from_paths
+from jojo.mcp.skill_loader import SkillInfo, load_skills_from_paths
 from jojo.mcp.tool_registry import ToolRegistry
 from jojo.services.email_notifier import EmailNotifier
 from jojo.services.heartbeat import HeartbeatService
@@ -33,6 +34,7 @@ class AppContext:
     memory: MemoryStore
     mcp_client: MCPClientManager
     heartbeat: HeartbeatService
+    message_bus: MessageBus
 
 
 async def build_app(config_path: str = "agent.yaml") -> AppContext:
@@ -46,13 +48,19 @@ async def build_app(config_path: str = "agent.yaml") -> AppContext:
     permissions = PermissionManager(config.permissions)
     tool_registry = await _build_tool_registry(mcp_client)
     email = EmailNotifier(config.email)
+    skills = load_skills_from_paths([Path(".")])
+    message_bus = MessageBus()
+
+    # SubAgentBackend (OpenCode or tmux)
+    backend = _build_backend(config)
 
     # Build JoJo orchestrator
     jojo = JoJo(memory=memory, config=config)
 
     # Register Stands
     _register_stands(
-        jojo, config, llm, reasoning_llm, tool_registry, memory, permissions,
+        jojo, config, llm, reasoning_llm, tool_registry, memory,
+        permissions, backend, message_bus, skills,
     )
 
     # Heartbeat belongs to JoJo
@@ -65,6 +73,7 @@ async def build_app(config_path: str = "agent.yaml") -> AppContext:
         memory=memory,
         mcp_client=mcp_client,
         heartbeat=heartbeat,
+        message_bus=message_bus,
     )
 
 
@@ -87,16 +96,17 @@ def _register_stands(
     tool_registry: ToolRegistry,
     memory: MemoryStore,
     permissions: PermissionManager,
+    backend: Any | None,
+    message_bus: MessageBus,
+    skills: list[SkillInfo],
 ) -> None:
     """Create and register all Stands with JoJo."""
     from jojo.stands.star_platinum import StarPlatinum
     from jojo.stands.gold_experience import GoldExperience
-    from jojo.stands.the_world import TheWorld
     from jojo.stands.hierophant_green import HierophantGreen
-    from jojo.stands.harvest import Harvest
-    from jojo.stands.sheer_heart_attack import SheerHeartAttack
+    from jojo.stands.crazy_diamond import CrazyDiamond
 
-    # Star Platinum — default ReAct + Time Stop
+    # Star Platinum — The Executor (Ora Ora Rush + The World)
     jojo.register_stand(StarPlatinum(
         llm=llm,
         tool_registry=tool_registry,
@@ -105,39 +115,36 @@ def _register_stands(
         permissions=permissions,
     ))
 
-    # Gold Experience — sub-agent spawner
+    # Hierophant Green — The Researcher (Emerald Splash + 20m Barrier)
+    query_service = _build_query_service(config)
+    jojo.register_stand(HierophantGreen(
+        memory_store=memory,
+        query_service=query_service,
+        llm=llm,
+        skills=skills,
+        tool_registry=tool_registry,
+    ))
+
+    # Crazy Diamond — The Reviewer (Restoration + Breakdown)
+    jojo.register_stand(CrazyDiamond(
+        llm=llm,
+        tool_registry=tool_registry,
+        memory=memory,
+        skills=skills,
+    ))
+
+    # Gold Experience — The Orchestrator (Life Giver + Life Sensor)
     stand_factory = _build_stand_factory(
-        config, llm, reasoning_llm, tool_registry, memory,
+        config, llm, reasoning_llm, tool_registry, memory, backend, skills,
     )
     jojo.register_stand(GoldExperience(
         llm=llm,
         tool_registry=tool_registry,
         memory=memory,
         stand_factory=stand_factory,
+        backend=backend,
+        message_bus=message_bus,
     ))
-
-    # The World — deep reasoning (also spawnable by Gold Experience)
-    jojo.register_stand(TheWorld(
-        llm=reasoning_llm or llm,
-        tool_registry=tool_registry,
-    ))
-
-    # Hierophant Green — RAG
-    query_service = _build_query_service(config)
-    jojo.register_stand(HierophantGreen(
-        memory_store=memory,
-        query_service=query_service,
-    ))
-
-    # Harvest — parallel execution
-    harvest_worker = _make_harvest_worker(llm, tool_registry, memory)
-    max_c = config.subagent.max_concurrent if config.subagent else 10
-    jojo.register_stand(Harvest(worker=harvest_worker, max_concurrency=max_c))
-
-    # Sheer Heart Attack — background tasks
-    spawner = _build_subagent_spawner(config)
-    timeout = config.subagent.timeout_seconds if config.subagent else 600
-    jojo.register_stand(SheerHeartAttack(spawner=spawner, timeout=timeout))
 
 
 def _build_stand_factory(
@@ -146,32 +153,67 @@ def _build_stand_factory(
     reasoning_llm: Any | None,
     tool_registry: ToolRegistry,
     memory: MemoryStore,
+    backend: Any | None,
+    skills: list[Any],
 ) -> Any:
     """Factory function for Gold Experience to spawn sub-agent Stands."""
-    from jojo.stands.the_world import TheWorld
     from jojo.stands.hierophant_green import HierophantGreen
-    from jojo.stands.harvest import Harvest
+    from jojo.stands.crazy_diamond import CrazyDiamond
     from jojo.stands.sheer_heart_attack import SheerHeartAttack
 
     query_service = _build_query_service(config)
-    spawner = _build_subagent_spawner(config)
-    harvest_worker = _make_harvest_worker(llm, tool_registry, memory)
 
     def factory(stand_type: StandType) -> Any:
-        if stand_type == StandType.THE_WORLD:
-            return TheWorld(llm=reasoning_llm or llm, tool_registry=tool_registry)
-        elif stand_type == StandType.HIEROPHANT_GREEN:
-            return HierophantGreen(memory_store=memory, query_service=query_service)
-        elif stand_type == StandType.HARVEST:
-            max_c = config.subagent.max_concurrent if config.subagent else 10
-            return Harvest(worker=harvest_worker, max_concurrency=max_c)
+        if stand_type == StandType.HIEROPHANT_GREEN:
+            return HierophantGreen(
+                memory_store=memory, query_service=query_service,
+                llm=llm, skills=skills, tool_registry=tool_registry,
+            )
+        elif stand_type == StandType.CRAZY_DIAMOND:
+            return CrazyDiamond(
+                llm=llm, tool_registry=tool_registry,
+                memory=memory, skills=skills,
+            )
         elif stand_type == StandType.SHEER_HEART_ATTACK:
             timeout = config.subagent.timeout_seconds if config.subagent else 600
-            return SheerHeartAttack(spawner=spawner, timeout=timeout)
+            return SheerHeartAttack(backend=backend, timeout=timeout)
         else:
             raise ValueError(f"Cannot spawn: {stand_type}")
 
     return factory
+
+
+# ---------------------------------------------------------------------------
+# SubAgentBackend builder
+# ---------------------------------------------------------------------------
+
+def _build_backend(config: AgentConfig) -> Any | None:
+    """Build the SubAgentBackend based on config."""
+    backend_type = config.subagent.backend if config.subagent else "tmux"
+
+    if backend_type == "opencode" and config.opencode.enabled:
+        try:
+            from jojo.services.backend_opencode import OpenCodeBackend
+            return OpenCodeBackend(
+                base_url=config.opencode.base_url,
+                password=config.opencode.password,
+                default_agent=config.opencode.default_agent,
+                timeout_seconds=config.opencode.timeout_seconds,
+            )
+        except Exception:
+            logger.warning("OpenCode backend unavailable — falling back to tmux.")
+
+    # Fallback: tmux backend
+    if config.subagent and config.subagent.enabled:
+        try:
+            from jojo.services.subagent import SubAgentSpawner
+            from jojo.services.backend_tmux import TmuxBackend
+            spawner = SubAgentSpawner(config.subagent)
+            return TmuxBackend(spawner)
+        except Exception:
+            logger.info("SubAgent spawner not available.")
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -246,17 +288,6 @@ async def _build_tool_registry(mcp_client: MCPClientManager) -> ToolRegistry:
     return registry
 
 
-def _build_subagent_spawner(config: AgentConfig) -> Any | None:
-    if not config.subagent.enabled:
-        return None
-    try:
-        from jojo.services.subagent import SubAgentSpawner
-        return SubAgentSpawner(config.subagent)
-    except Exception:
-        logger.info("SubAgent spawner not available — SHEER HEART ATTACK disabled.")
-        return None
-
-
 def _build_heartbeat(config: AgentConfig, llm: Any, email: EmailNotifier) -> HeartbeatService:
     async def check_llm() -> bool:
         try:
@@ -273,13 +304,3 @@ def _build_heartbeat(config: AgentConfig, llm: Any, email: EmailNotifier) -> Hea
             f"Failed checks: {status.failures}",
         ),
     )
-
-
-def _make_harvest_worker(llm: Any, tool_registry: ToolRegistry, memory: MemoryStore) -> Any:
-    """Simple worker function for HARVEST's parallel sub-tasks."""
-    async def worker(task: str, ctx: dict) -> str:
-        from jojo.stands.star_platinum import StarPlatinum
-        mini = StarPlatinum(llm=llm, tool_registry=tool_registry, memory=memory, max_steps=5)
-        result = await mini.execute(task, {"max_steps": 5})
-        return str(result.output) if result.output else (result.error or "")
-    return worker

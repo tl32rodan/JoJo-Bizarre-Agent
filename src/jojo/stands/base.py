@@ -18,12 +18,11 @@ from typing import Any
 
 class StandType(Enum):
     """All available Stands."""
-    STAR_PLATINUM = "star_platinum"       # default ReAct + Time Stop ability
-    GOLD_EXPERIENCE = "gold_experience"   # sub-agent spawner
-    THE_WORLD = "the_world"              # deep reasoning (spawnable)
-    HIEROPHANT_GREEN = "hierophant_green"  # RAG pipeline
-    HARVEST = "harvest"                   # parallel execution
-    SHEER_HEART_ATTACK = "sheer_heart_attack"  # background tasks
+    STAR_PLATINUM = "star_platinum"         # Executor: Ora Ora Rush + The World
+    GOLD_EXPERIENCE = "gold_experience"    # Orchestrator: Life Giver + Life Sensor
+    HIEROPHANT_GREEN = "hierophant_green"  # Researcher: Emerald Splash + 20m Barrier
+    CRAZY_DIAMOND = "crazy_diamond"        # Reviewer: Restoration + Breakdown
+    SHEER_HEART_ATTACK = "sheer_heart_attack"  # Background: Automatic Tracking
 
 
 class StandStatus(Enum):
@@ -57,10 +56,10 @@ STAND_PROFILES: dict[StandType, StandProfile] = {
         name_jp="スタープラチナ",
         user="Jotaro Kujo",
         part=3,
-        ability_name="Precision + Time Stop",
+        ability_name="Ora Ora Rush + The World",
         ability_description=(
-            "Default general-purpose ReAct agent. "
-            "Can activate The World's Time Stop for deep reasoning with a dedicated model."
+            "Direct ReAct executor. Ora Ora Rush for fast building, "
+            "Star Platinum: The World for deep reasoning."
         ),
         spawn_mode=SpawnMode.IN_PROCESS,
     ),
@@ -69,17 +68,11 @@ STAND_PROFILES: dict[StandType, StandProfile] = {
         name_jp="ゴールド・エクスペリエンス",
         user="Giorno Giovanna",
         part=5,
-        ability_name="Life Giver",
-        ability_description="Spawns and orchestrates sub-agent Stands for complex multi-step tasks.",
-        spawn_mode=SpawnMode.IN_PROCESS,
-    ),
-    StandType.THE_WORLD: StandProfile(
-        name="THE WORLD",
-        name_jp="ザ・ワールド",
-        user="DIO",
-        part=3,
-        ability_name="Time Stop",
-        ability_description="Deep chain-of-thought reasoning with dedicated reasoning model.",
+        ability_name="Life Giver + Life Sensor",
+        ability_description=(
+            "Orchestrates complex tasks. Spawns sub-agents, monitors status, "
+            "examines output. Cherishes all life it creates."
+        ),
         spawn_mode=SpawnMode.IN_PROCESS,
     ),
     StandType.HIEROPHANT_GREEN: StandProfile(
@@ -87,17 +80,23 @@ STAND_PROFILES: dict[StandType, StandProfile] = {
         name_jp="法皇の緑",
         user="Noriaki Kakyoin",
         part=3,
-        ability_name="Emerald Splash",
-        ability_description="Semantic search & RAG — embed → vector search → SMAK expansion → consolidate.",
-        spawn_mode=SpawnMode.SUBAGENT,
+        ability_name="Emerald Splash + 20m Emerald Barrier",
+        ability_description=(
+            "Deep research via RAG (Emerald Splash) and methodology "
+            "enforcement via SKILL.md patterns (20m Barrier). Read-only."
+        ),
+        spawn_mode=SpawnMode.IN_PROCESS,
     ),
-    StandType.HARVEST: StandProfile(
-        name="HARVEST",
-        name_jp="ハーヴェスト",
-        user="Shigekiyo Yangu",
+    StandType.CRAZY_DIAMOND: StandProfile(
+        name="CRAZY DIAMOND",
+        name_jp="クレイジー・ダイヤモンド",
+        user="Josuke Higashikata",
         part=4,
-        ability_name="Colony",
-        ability_description="Parallel batch execution — splits tasks and runs concurrently.",
+        ability_name="Restoration + Breakdown",
+        ability_description=(
+            "Code review and quality gate. Restoration detects bugs and "
+            "fixes them. Breakdown verifies output against requirements."
+        ),
         spawn_mode=SpawnMode.IN_PROCESS,
     ),
     StandType.SHEER_HEART_ATTACK: StandProfile(
@@ -106,7 +105,7 @@ STAND_PROFILES: dict[StandType, StandProfile] = {
         user="Yoshikage Kira",
         part=4,
         ability_name="Automatic Tracking",
-        ability_description="Fire-and-forget background tasks via subprocess.",
+        ability_description="Fire-and-forget background tasks via SubAgentBackend.",
         spawn_mode=SpawnMode.SUBAGENT,
     ),
 }

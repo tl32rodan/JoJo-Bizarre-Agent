@@ -1,11 +1,10 @@
-"""STAR PLATINUM（スタープラチナ）— Precision + Time Stop.
+"""STAR PLATINUM（スタープラチナ）— The Executor.
 
-Ability: Precision — direct, general-purpose ReAct execution.
-         Time Stop — deep chain-of-thought reasoning (optional reasoning model).
+Ability 1: Ora Ora Rush — direct, fast ReAct execution for building.
+Ability 2: Star Platinum: The World — deep reasoning with dedicated model.
 
-Star Platinum is the default Stand. It uses the standard LLM for regular
-tasks, but can activate "The World" (Time Stop) mode to switch to a
-dedicated reasoning model for deeper analysis.
+Star Platinum is the default Stand.  Precise, powerful, minimal wasted
+motion.  Gets things done.  「やれやれだぜ…」
 """
 
 from __future__ import annotations
@@ -59,15 +58,17 @@ class StarPlatinum(Stand):
             max_steps = ctx.get("max_steps", 30)
             ability_text = (
                 "Ability: Star Platinum — The World!\n"
-                "Time Stop activated. Think deeply, step by step.\n"
+                "Time has stopped. Think deeply, step by step.\n"
                 "Be thorough. Use all available tools to gather facts.\n"
+                "No one can escape your analysis.\n"
                 "「時よ止まれ！」"
             )
         else:
             llm = self._llm
             ability_text = (
-                "Ability: Precision — direct, efficient execution.\n"
+                "Ability: Ora Ora Rush — direct, efficient execution.\n"
                 "Use tools when needed. Be concise. Get results.\n"
+                "You are precise and powerful. Minimal words, maximum impact.\n"
                 "「オラオラオラ！」"
             )
 

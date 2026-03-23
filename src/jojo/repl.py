@@ -18,17 +18,25 @@ _BANNER = r"""
             |__/
 
     JoJo's Bizarre Agent — 「やれやれだぜ…」
-    Stands: Star Platinum | Gold Experience | The World
-            Hierophant Green | Harvest | Sheer Heart Attack
+
+    Stands:
+      Star Platinum    — Executor  (Ora Ora Rush + The World)
+      Gold Experience  — Orchestrator (Life Giver + Life Sensor)
+      Hierophant Green — Researcher (Emerald Splash + 20m Barrier)
+      Crazy Diamond    — Reviewer  (Restoration + Breakdown)
+
+    Commands:
+      /stand <name>      — Force a specific Stand
+      /timestop <query>  — Star Platinum: The World (deep reasoning)
+      /barrier <query>   — Hierophant Green: 20m Barrier (methodology)
+      /review <query>    — Crazy Diamond: Restoration (code review)
 """
 
 
 async def run_repl(ctx: AppContext) -> None:
     """Run the interactive JoJo REPL."""
     print(_BANNER)
-    print("Type 'exit' or 'quit' to leave.")
-    print("Type '/stand <name>' to force a specific Stand.")
-    print("Type '/timestop <query>' to activate Star Platinum: The World.\n")
+    print("Type 'exit' or 'quit' to leave.\n")
 
     while True:
         try:
@@ -45,12 +53,10 @@ async def run_repl(ctx: AppContext) -> None:
             break
 
         # /stand command — force a specific Stand
-        forced_stand = None
         if user_input.lower().startswith("/stand "):
             name = user_input[7:].strip().lower()
             for st in StandType:
                 if name in st.value or name in STAND_PROFILES[st].name.lower():
-                    forced_stand = st
                     print(f"\n  → {STAND_PROFILES[st].name}（{STAND_PROFILES[st].name_jp}）\n")
                     break
             else:
@@ -60,14 +66,36 @@ async def run_repl(ctx: AppContext) -> None:
 
         # /timestop command — Star Platinum: The World
         time_stop = False
+        barrier = False
+        review = False
+        forced_stand = None
+
         if user_input.lower().startswith("/timestop "):
             user_input = user_input[10:].strip()
             forced_stand = StandType.STAR_PLATINUM
             time_stop = True
             print("\n  「スタープラチナ ザ・ワールド！」\n")
 
+        # /barrier command — Hierophant Green: 20m Barrier
+        elif user_input.lower().startswith("/barrier "):
+            user_input = user_input[9:].strip()
+            forced_stand = StandType.HIEROPHANT_GREEN
+            barrier = True
+            print("\n  「結界だ… 逃がさん！」\n")
+
+        # /review command — Crazy Diamond: Restoration
+        elif user_input.lower().startswith("/review "):
+            user_input = user_input[8:].strip()
+            forced_stand = StandType.CRAZY_DIAMOND
+            review = True
+            print("\n  「直してやるよ」\n")
+
         result = await ctx.jojo.run(
-            user_input, stand=forced_stand, time_stop=time_stop,
+            user_input,
+            stand=forced_stand,
+            time_stop=time_stop,
+            barrier=barrier,
+            review=review,
         )
         print(f"\n{result.answer}\n")
 
