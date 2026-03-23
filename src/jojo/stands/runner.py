@@ -1,9 +1,8 @@
 """Stand subprocess runner — entry point for subagent-spawned Stands.
 
-When STAR PLATINUM summons HIEROPHANT GREEN or SHEER HEART ATTACK via
-GOLD EXPERIENCE, the SubAgentSpawner launches this module as a separate
-process. It reads input.json, runs the Stand's pipeline, and writes
-output.json or error.txt.
+When GOLD EXPERIENCE spawns a subagent via tmux/cron, SubAgentSpawner
+launches this module as a separate process. It reads input.json,
+runs the Stand's pipeline, and writes output.json or error.txt.
 
 Usage:
     python -m jojo.stands.runner <task_id> --work-dir <path>
@@ -49,13 +48,25 @@ def _setup_stand(stand_type: str, task: str, context: dict) -> object:
             top_k=context.get("top_k", 10),
         )
 
+    if stand_type == "crazy_diamond":
+        from langchain_openai import ChatOpenAI
+        from jojo.stands.crazy_diamond import CrazyDiamond
+
+        llm_config = context.get("llm", {})
+        llm = ChatOpenAI(
+            base_url=llm_config.get("base_url", "http://f15dtpai1:11517/v1"),
+            model=llm_config.get("model", "gpt-oss-120b"),
+            api_key=llm_config.get("api_key", "EMPTY"),
+        )
+        return CrazyDiamond(llm=llm)
+
     if stand_type == "sheer_heart_attack":
-        # SHEER HEART ATTACK in subagent mode runs its inner task directly
-        # (it doesn't re-spawn; the spawning already happened)
-        from jojo.stands.hierophant_green import HierophantGreen
+        # SHA in subagent mode runs its inner task directly
+        # (no re-spawning — the spawning already happened)
         from smak.utils.embedding import InternalNomicEmbedding
         from faiss_storage_lib.engine.faiss_engine import FaissEngine
         from jojo.memory.store import MemoryStore
+        from jojo.stands.hierophant_green import HierophantGreen
 
         embedder = InternalNomicEmbedding()
         dimension = embedder.get_embedding_dimension()

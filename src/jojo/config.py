@@ -101,9 +101,19 @@ class EmailConfig:
 
 
 @dataclass(frozen=True)
+class OpenCodeConfig:
+    enabled: bool = False
+    base_url: str = "http://localhost:4096"
+    password: str = ""
+    default_agent: str = "build"
+    timeout_seconds: int = 300
+
+
+@dataclass(frozen=True)
 class SubAgentConfig:
     enabled: bool = True
     mode: str = "tmux"
+    backend: str = "tmux"  # "tmux" | "opencode"
     max_concurrent: int = 3
     timeout_seconds: int = 600
     work_dir: str = "./agent_data/subagent_tasks/"
@@ -126,6 +136,7 @@ class AgentConfig:
     heartbeat: HeartbeatConfig = field(default_factory=HeartbeatConfig)
     email: EmailConfig = field(default_factory=EmailConfig)
     subagent: SubAgentConfig = field(default_factory=SubAgentConfig)
+    opencode: OpenCodeConfig = field(default_factory=OpenCodeConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
 
 
@@ -169,5 +180,6 @@ def load_agent_config(path: str | Path = "agent.yaml") -> AgentConfig:
         heartbeat=_build_dataclass(HeartbeatConfig, data["heartbeat"]) if "heartbeat" in data else HeartbeatConfig(),
         email=_build_dataclass(EmailConfig, data["email"]) if "email" in data else EmailConfig(),
         subagent=_build_dataclass(SubAgentConfig, data["subagent"]) if "subagent" in data else SubAgentConfig(),
+        opencode=_build_dataclass(OpenCodeConfig, data["opencode"]) if "opencode" in data else OpenCodeConfig(),
         session=_build_dataclass(SessionConfig, data["session"]) if "session" in data else SessionConfig(),
     )

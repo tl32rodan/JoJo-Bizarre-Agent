@@ -3,10 +3,11 @@
 JoJo decides which Stand to channel based on the task, then delegates
 execution to that Stand's `execute()` method.
 
-- Star Platinum is the default for general tasks.
+- Star Platinum is the default for general tasks (building).
 - Gold Experience is chosen when sub-agent orchestration is needed.
+- Hierophant Green is chosen for research / analysis / planning.
+- Crazy Diamond is chosen for code review / quality checks.
 - JoJo can channel ANY registered Stand — no hierarchy.
-- Heartbeat belongs to JoJo.
 """
 
 from __future__ import annotations
@@ -33,7 +34,16 @@ class JoJoResult:
 _STAND_HINTS: dict[StandType, list[str]] = {
     StandType.GOLD_EXPERIENCE: [
         "spawn", "orchestrate", "complex", "multi-step", "parallel",
-        "sub-agent", "subagent", "delegate", "break down",
+        "sub-agent", "subagent", "delegate", "break down", "coordinate",
+    ],
+    StandType.HIEROPHANT_GREEN: [
+        "research", "investigate", "analyze", "analyse", "study",
+        "explore", "search", "find out", "look into", "deep dive",
+        "plan", "design", "architecture", "methodology",
+    ],
+    StandType.CRAZY_DIAMOND: [
+        "review", "check", "fix", "bug", "quality", "audit",
+        "verify", "validate", "test", "lint", "inspect",
     ],
     StandType.STAR_PLATINUM: [],  # default fallback
 }
@@ -87,6 +97,8 @@ class JoJo:
         *,
         stand: StandType | None = None,
         time_stop: bool = False,
+        barrier: bool = False,
+        review: bool = False,
         max_steps: int | None = None,
     ) -> JoJoResult:
         """Process user input through the chosen Stand."""
@@ -105,6 +117,10 @@ class JoJo:
             context["max_steps"] = max_steps
         if time_stop:
             context["time_stop"] = True
+        if barrier:
+            context["mode"] = "barrier"
+        if review:
+            context["mode"] = "restoration"
         if hasattr(self._config, "session"):
             context["max_history_tokens"] = self._config.session.max_history_tokens
 

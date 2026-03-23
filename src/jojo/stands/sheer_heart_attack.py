@@ -1,19 +1,19 @@
-"""SHEER HEART ATTACK（シアーハートアタック）— Automatic Stand.
+"""SHEER HEART ATTACK（シアーハートアタック）— Background Worker.
 
-Background task pipeline (spawned as subagent via GOLD EXPERIENCE).
-Launches a task via SubAgentSpawner (tmux/cron) and optionally polls.
+Ability: Automatic Tracking — fire-and-forget tasks via SubAgentBackend.
 
-When the task is "fire_and_forget" (default), STAR PLATINUM gets an
-immediate acknowledgement. The actual work runs in a separate process
-via stands/runner.py.
+Spawned by Gold Experience.  Automatic, relentless, independent.
+Uses OpenCode or tmux backend through the SubAgentBackend protocol.
+
+「コッチヲ見ロ」
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
+from jojo.services.backend import SubAgentBackend, TaskStatus
 from jojo.stands.base import Stand, StandResult, StandStatus, StandType
 
 logger = logging.getLogger(__name__)
@@ -26,13 +26,11 @@ class SheerHeartAttack(Stand):
 
     def __init__(
         self,
-        spawner: Any | None = None,
-        poll_interval: float = 5.0,
+        backend: SubAgentBackend | None = None,
         timeout: float = 600.0,
     ) -> None:
         super().__init__()
-        self._spawner = spawner
-        self._poll_interval = poll_interval
+        self._backend = backend
         self._timeout = timeout
 
     async def execute(self, task: str, context: dict[str, Any] | None = None) -> StandResult:
@@ -42,35 +40,36 @@ class SheerHeartAttack(Stand):
 
         ctx = context or {}
         fire_and_forget: bool = ctx.get("fire_and_forget", True)
+        agent: str = ctx.get("agent", "build")
 
-        if self._spawner is None:
-            return self._fail("SHEER HEART ATTACK has no SubAgentSpawner.")
+        if self._backend is None:
+            return self._fail("SHEER HEART ATTACK has no SubAgentBackend.")
 
         try:
-            handle = self._spawner.spawn(task, context=ctx)
-            logger.info("SHEER HEART ATTACK spawned sub-agent %s", handle.task_id)
+            handle_id = await self._backend.spawn(
+                task, agent=agent, context=ctx,
+            )
+            logger.info("SHEER HEART ATTACK spawned — handle=%s", handle_id)
 
             if fire_and_forget:
                 return self._succeed(
-                    f"Background task launched: {handle.task_id}",
-                    sub_task_id=handle.task_id, mode="fire_and_forget",
+                    f"Background task launched: {handle_id}",
+                    handle_id=handle_id, mode="fire_and_forget",
                 )
 
-            # Poll until done.
-            elapsed = 0.0
-            while elapsed < self._timeout:
-                await asyncio.sleep(self._poll_interval)
-                elapsed += self._poll_interval
-                sub_result = self._spawner.collect(handle)
-                if sub_result.status.value in ("completed", "failed"):
-                    return self._succeed(
-                        sub_result.output or sub_result.error,
-                        sub_task_id=handle.task_id,
-                        sub_status=sub_result.status.value,
-                        elapsed=elapsed,
-                    )
+            # Blocking mode — wait for result.
+            result = await self._backend.collect(handle_id, timeout=self._timeout)
 
-            return self._fail(f"Timed out after {self._timeout}s", sub_task_id=handle.task_id)
+            if result.status == TaskStatus.COMPLETED:
+                return self._succeed(
+                    result.output,
+                    handle_id=handle_id,
+                    mode="blocking",
+                )
+            return self._fail(
+                result.error or "Task failed",
+                handle_id=handle_id,
+            )
 
         except Exception as exc:
             logger.exception("SHEER HEART ATTACK failed — task_id=%s", self._task_id)

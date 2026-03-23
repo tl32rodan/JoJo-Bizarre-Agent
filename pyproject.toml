@@ -18,6 +18,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+opencode = [
+    "opencode-ai>=0.1.0a30",
+]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
